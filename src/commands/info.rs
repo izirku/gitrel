@@ -1,4 +1,5 @@
 use reqwest::header;
+use crate::models::github;
 
 pub async fn info(repo: &str, token: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
     let mut headers = header::HeaderMap::new();
@@ -11,11 +12,10 @@ pub async fn info(repo: &str, token: Option<String>) -> Result<(), Box<dyn std::
         header::HeaderValue::from_static("reqwest"),
     );
     if let Some(token) = token {
-    headers.insert(
-        header::AUTHORIZATION,
-        header::HeaderValue::from_str(token.as_str()).unwrap(),
-    );
-
+        headers.insert(
+            header::AUTHORIZATION,
+            header::HeaderValue::from_str(token.as_str()).unwrap(),
+        );
     }
 
     let client = reqwest::Client::builder()
@@ -26,12 +26,13 @@ pub async fn info(repo: &str, token: Option<String>) -> Result<(), Box<dyn std::
         .get(format!("https://api.github.com/repos/{}/releases", repo))
         .send()
         .await?
-        .text()
-        // .json()
+        // .text()
+        .json::<Vec<github::Release>>()
         // .json::<HashMap<String, String>>()
         .await?;
 
-    println!("{:#?}", releases);
+    println!("{:#?}", &releases[..2]);
+    println!("{}", releases.len());
 
     Ok(())
 }
