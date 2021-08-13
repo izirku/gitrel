@@ -1,12 +1,10 @@
-pub mod commands;
-pub mod config;
-pub mod consts;
-pub mod models;
-
-use crate::config::{ensure_gitignore, get_or_create_cofig_file};
+// use gitrel::foundation::config::{ensure_gitignore, get_or_create_cofig_file};
 use anyhow::{Context, Result};
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
 use directories::ProjectDirs;
+use gitrel::app;
+use gitrel::business::data::conf;
+use gitrel::foundation::file;
 use std::fs;
 
 fn main() -> Result<()> {
@@ -20,8 +18,8 @@ fn main() -> Result<()> {
     let gh_token_file = cfg_dir.join("github_token.plain");
     let gh_ignore_file = cfg_dir.join(".gitignore");
 
-    let config = get_or_create_cofig_file(&config_file)?;
-    ensure_gitignore(&gh_ignore_file)?;
+    let config = conf::get_or_create_cofig_file(&config_file)?;
+    file::ensure_gitignore(&gh_ignore_file)?;
 
     let matches = App::new(crate_name!())
         .version(crate_version!())
@@ -74,7 +72,7 @@ priority: arg -> env -> token file
 
     let token = match matches.value_of("token") {
         Some(token) => Some(token.to_owned()),
-        None => config::gh_token_from_file(&gh_token_file),
+        None => file::gh_token_from_file(&gh_token_file),
     };
 
     dbg!(config);
@@ -85,10 +83,7 @@ priority: arg -> env -> token file
             .enable_all()
             .build()
             .unwrap()
-            .block_on(commands::info::info(
-                matches.value_of("repo").unwrap(),
-                token,
-            ));
+            .block_on(app::info::info(matches.value_of("repo").unwrap(), token));
     }
 
     Ok(())

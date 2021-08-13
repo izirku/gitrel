@@ -1,5 +1,5 @@
+use crate::business::data::github;
 use reqwest::header;
-use crate::models::github;
 
 pub async fn info(repo: &str, token: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
     let mut headers = header::HeaderMap::new();
@@ -26,9 +26,7 @@ pub async fn info(repo: &str, token: Option<String>) -> Result<(), Box<dyn std::
         .get(format!("https://api.github.com/repos/{}/releases", repo))
         .send()
         .await?
-        // .text()
-        .json::<Vec<github::Release>>()
-        // .json::<HashMap<String, String>>()
+        .json::<Vec<github::model::Release>>()
         .await?;
 
     println!("{:#?}", &releases[..2]);
