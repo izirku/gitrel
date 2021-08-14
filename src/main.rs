@@ -3,6 +3,7 @@ use anyhow::{Context, Result};
 use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
 use directories::ProjectDirs;
 use gitrel::app;
+use gitrel::app::list::list_requested;
 use gitrel::business::data::conf;
 use gitrel::foundation::file;
 use std::fs;
@@ -17,6 +18,7 @@ fn main() -> Result<()> {
     let config_file = cfg_dir.join("config.toml");
     let gh_token_file = cfg_dir.join("github_token.plain");
     let gh_ignore_file = cfg_dir.join(".gitignore");
+    let pkg_requested_file = cfg_dir.join("requested.toml");
 
     let config = conf::get_or_create_cofig_file(&config_file)?;
     file::ensure_gitignore(&gh_ignore_file)?;
@@ -78,13 +80,21 @@ priority: arg -> env -> token file
     dbg!(config);
     dbg!(&token);
 
-    if let Some(matches) = matches.subcommand_matches("info") {
-        let _res = tokio::runtime::Builder::new_current_thread()
+    // if let Some(matches) = matches.subcommand_matches("info") {
+    //     let _res = tokio::runtime::Builder::new_current_thread()
+    //         .enable_all()
+    //         .build()
+    //         .unwrap()
+    //         .block_on(app::info::info(matches.value_of("repo").unwrap(), token));
+    // }
+
+    match matches.subcommand() {
+        Some(("info", sub_m)) => tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .unwrap()
-            .block_on(app::info::info(matches.value_of("repo").unwrap(), token));
+            .block_on(app::info::info(sub_m.value_of("repo").unwrap(), token)),
+        Some(("list", _sub_m)) => list_requested(&pkg_requested_file),
+        _ => Ok(()),
     }
-
-    Ok(())
 }

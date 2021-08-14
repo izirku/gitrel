@@ -1,7 +1,8 @@
 use crate::business::data::github;
 use reqwest::header;
+use anyhow::Result;
 
-pub async fn info(repo: &str, token: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn info(repo: &str, token: Option<String>) -> Result<()> {
     let mut headers = header::HeaderMap::new();
     headers.insert(
         header::ACCEPT,
