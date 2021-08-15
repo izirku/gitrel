@@ -25,11 +25,25 @@ impl PackageReq {
         match self {
             Simple(version) => PackageReqDetail {
                 repo: Some(format!("{0}/{0}", name)),
-                bin_name: Some(name),
+                bin_name: Some(name.to_lowercase()),
                 version_requested: Some(version),
                 ..Default::default()
             },
-            Detailed(detailed) => detailed,
+            Detailed(detailed) => {
+                // let bin_name = detailed
+                //     .repo
+                //     .as_ref()
+                //     .and_then(|repo| repo.split_once('/'))
+                //     .and_then(|(_, repo_name)| Some(repo_name.to_lowercase()));
+                // PackageReqDetail {
+                //     bin_name,
+                //     ..detailed
+                // }
+                PackageReqDetail {
+                    bin_name: Some(name.to_lowercase()),
+                    ..detailed
+                }
+            }
         }
     }
 }
