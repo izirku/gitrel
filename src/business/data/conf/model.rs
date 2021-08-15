@@ -11,6 +11,7 @@ pub struct ConfigFile {
 }
 
 pub type PackageReqMap = BTreeMap<String, PackageReq>;
+pub type PackageReqDetailMap = BTreeMap<String, PackageReqDetail>;
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -20,38 +21,35 @@ pub enum PackageReq {
 }
 
 impl PackageReq {
-    pub fn into_detailed(self, name: String) -> PackageReqDetail {
+    pub fn into_detailed(self, name: &str) -> PackageReqDetail {
         use PackageReq::*;
         match self {
             Simple(version) => PackageReqDetail {
                 repo: Some(format!("{0}/{0}", name)),
-                bin_name: Some(name.to_lowercase()),
                 version_requested: Some(version),
                 ..Default::default()
             },
-            Detailed(detailed) => {
-                // let bin_name = detailed
-                //     .repo
-                //     .as_ref()
-                //     .and_then(|repo| repo.split_once('/'))
-                //     .and_then(|(_, repo_name)| Some(repo_name.to_lowercase()));
-                // PackageReqDetail {
-                //     bin_name,
-                //     ..detailed
-                // }
-                PackageReqDetail {
-                    bin_name: Some(name.to_lowercase()),
-                    ..detailed
-                }
+            Detailed(detailed) => detailed,
+        }
+    }
+
+    pub fn get_version(&self) -> String {
+        use PackageReq::*;
+        match self {
+            Simple(version) => version.to_owned(),
+            // Detailed(detailed) => detailed.version_requested.as_ref().unwrap_or("*").clone(),
+            Detailed(detailed) => match detailed.version_requested {
+                None => "*".to_string(),
+                Some(ref ver) => ver.to_string(),
             }
         }
+
     }
 }
 
 #[derive(Debug, Deserialize, Default)]
 pub struct PackageReqDetail {
     pub repo: Option<String>,
-    pub bin_name: Option<String>,
     #[serde(rename = "version")]
     pub version_requested: Option<String>,
     pub strip: Option<bool>,
