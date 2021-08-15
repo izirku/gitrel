@@ -33,6 +33,17 @@ impl PackageReq {
         }
     }
 
+    pub fn get_repo(&self, name: &str) -> String {
+        use PackageReq::*;
+        match self {
+            Simple(_) => format!("{0}/{0}", name),
+            Detailed(detailed) => match detailed.repo {
+                None => format!("{0}/{0}", name),
+                Some(ref repo) => repo.to_string(),
+            },
+        }
+    }
+
     pub fn get_version(&self) -> String {
         use PackageReq::*;
         match self {
@@ -41,9 +52,8 @@ impl PackageReq {
             Detailed(detailed) => match detailed.version_requested {
                 None => "*".to_string(),
                 Some(ref ver) => ver.to_string(),
-            }
+            },
         }
-
     }
 }
 
