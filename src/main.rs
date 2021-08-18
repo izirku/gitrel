@@ -93,8 +93,13 @@ priority: arg -> env -> token file
             .enable_all()
             .build()
             .unwrap()
-            .block_on(app::info::info(sub_m.value_of("repo").unwrap(), token)),
+            .block_on(app::info::info(sub_m.value_of("repo").unwrap(), token.as_ref())),
         Some(("list", _sub_m)) => list_requested(&pkg_requested_file),
+        Some(("upgrade", _sub_m)) => tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(app::update::update_requested(&pkg_requested_file, token.as_ref())),
         _ => Ok(()),
     }
 }
