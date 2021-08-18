@@ -28,7 +28,7 @@ pub async fn update_requested(file: &Path, token: Option<&String>) -> Result<()>
         let ver_req = VersionReq::parse(&ver)?;
         let mut page = 1;
         let per_page = 20;
-        let max_pages = 3;
+        let max_pages = 1;
         let release = 'outer: loop {
             dbg!(page);
             let releases_url = format!(
@@ -44,11 +44,14 @@ pub async fn update_requested(file: &Path, token: Option<&String>) -> Result<()>
                 .await?;
 
             for release in releases {
-                dbg!(&release.tag_name);
-                if let Some(semver) = semver.find(&release.tag_name) {
-                    let ver_remote = Version::parse(semver.as_str())?;
-                    if ver_req.matches(&ver_remote) {
-                        break 'outer Some((release, ver_remote));
+                if let Some(name) = &release.name {
+                    dbg!(&release);
+                    // dbg!(name);
+                    if let Some(semver) = semver.find(name) {
+                        let ver_remote = Version::parse(semver.as_str())?;
+                        if ver_req.matches(&ver_remote) {
+                            break 'outer Some((release, ver_remote));
+                        }
                     }
                 }
                 // if release.tag_name == "v0.10.0" {
