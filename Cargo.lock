@@ -250,6 +250,7 @@ dependencies = [
  "chrono",
  "clap",
  "directories",
+ "lazy_static",
  "regex",
  "reqwest",
  "semver",

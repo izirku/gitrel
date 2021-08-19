@@ -15,9 +15,12 @@ pub fn list_requested(file: &Path) -> Result<()> {
     let mut cols = Vec::with_capacity(toml.len());
 
     for (name, pkg_spec) in toml.into_iter() {
-        let ver = format!("@ {}", pkg_spec.get_version());
-        let repo = format!("[https://github.com/{}]", pkg_spec.get_repo(&name));
+        let pkg_spec = pkg_spec.into_detailed(&name);
+        dbg!(&pkg_spec);
+        let ver = format!("@ {}", &pkg_spec.matches);
+        let repo = format!("[https://github.com/{}]", pkg_spec.repo.as_ref().unwrap());
         cols.push(vec![name, ver, repo]);
+        dbg!(&pkg_spec);
     }
 
     let max_lens = svec2_col_maj_max_lens_unchecked(&cols);
