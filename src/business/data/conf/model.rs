@@ -1,9 +1,10 @@
 use crate::foundation::consts;
 use anyhow::{Context, Result};
+use chrono::prelude::*;
 use regex::Regex;
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::{cmp::Ordering, collections::BTreeMap};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ConfigFile {
@@ -103,17 +104,27 @@ impl PackageReqDetail {
             match re.find(candidate) {
                 Some(m) => {
                     requested = m.as_str();
-                    // requested = m.as_str().to_string();
                 }
                 None => return Ok(false),
             }
         } else {
             requested = self.matches.as_str();
         }
-        dbg!(requested);
+        // dbg!(requested);
 
         // 3. try match
         match self.match_kind {
+            PackageMatchKind::Named => {
+                if requested == candidate {
+                    return Ok(true);
+                }
+            }
+            PackageMatchKind::RegEx => {
+                let re = Regex::new(requested)?;
+                if re.is_match(candidate) {
+                    return Ok(true);
+                }
+            }
             PackageMatchKind::SemVer => {
                 let ver_req = VersionReq::parse(requested)?;
                 if let Some(m) = consts::SEMVER.find(candidate) {
@@ -123,7 +134,20 @@ impl PackageReqDetail {
                     }
                 }
             }
-            _ => unimplemented!(),
+            PackageMatchKind::Date => {
+                let (op, dt_str) = requested.split_at(1);
+                let dt_req = NaiveDate::parse_from_str(dt_str, self.date_fmt.as_ref().unwrap())?;
+                if let Ok(dt_remote) =
+                    NaiveDate::parse_from_str(candidate, self.date_fmt.as_ref().unwrap())
+                {
+                    match (op, dt_remote.cmp(&dt_req)) {
+                        ("=", Ordering::Equal) => return Ok(true),
+                        ("<", Ordering::Less) => return Ok(true),
+                        (">", Ordering::Greater) => return Ok(true),
+                        _ => return Ok(false),
+                    }
+                }
+            }
         }
         Ok(false)
     }
