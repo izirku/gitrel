@@ -16,7 +16,7 @@ pub struct Release {
     pub node_id: String,
     pub tag_name: String,
     pub target_commitish: String,
-    pub name: Option<String>,
+    // pub name: Option<String>,
     // pub body: Option<String>,
     pub draft: bool,
     pub prerelease: bool,

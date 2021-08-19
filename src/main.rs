@@ -100,6 +100,8 @@ priority: arg -> env -> token file
             .build()
             .unwrap()
             .block_on(app::update::update_requested(&pkg_requested_file, token.as_ref())),
-        _ => Ok(()),
+        _ => {
+            Ok(())
+        },
     }
 }
