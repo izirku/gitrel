@@ -45,14 +45,7 @@ priority: arg -> env -> token file
                 .env("GITREL_TOKEN")
                 .hide_env_values(true),
         )
-        .subcommand(
-            App::new("list").about("list installed apps").arg(
-                Arg::new("outdated")
-                    .long("outdated")
-                    .short('u')
-                    .about("show available updates"),
-            ),
-        )
+        .subcommand(App::new("list").about("list installed apps"))
         .subcommand(
             App::new("info").about("show info about an app").arg(
                 Arg::new("repo")
@@ -62,14 +55,76 @@ priority: arg -> env -> token file
             ),
         )
         .subcommand(
-            App::new("install").about("install apps").arg(
-                Arg::new("strip")
-                    .short('s')
-                    .about("minimize by using `strip`"),
-            ),
+            App::new("install")
+                .about("install apps")
+                // .arg(Arg::new("repo").about("GitHub user/repo").takes_value(true))
+                .arg(
+                    Arg::new("repo")
+                        .about("GitHub user/repo")
+                        .multiple_values(true),
+                )
+                .arg(
+                    Arg::new("all")
+                        .long("all")
+                        .short('a')
+                        .conflicts_with("repo")
+                        .about("all apps in requested.toml"),
+                )
+                .arg(
+                    Arg::new("force")
+                        .long("force")
+                        .short('f')
+                        .conflicts_with("ensure")
+                        .about("force [re]install"),
+                )
+                .arg(
+                    Arg::new("ensure")
+                        .long("ensure")
+                        .short('e')
+                        .about("install missing"),
+                )
+                .arg(
+                    Arg::new("strip")
+                        .short('s')
+                        .about("minimize by using `strip`"),
+                ),
         )
         .subcommand(App::new("uninstall").about("uninstall apps"))
-        .subcommand(App::new("upgrade").alias("update").about("upgrade apps"))
+        .subcommand(
+            App::new("update")
+                .alias("upgrade")
+                .about("update apps")
+                .arg(
+                    Arg::new("repo")
+                        .about("GitHub user/repo")
+                        .multiple_values(true),
+                )
+                .arg(
+                    Arg::new("all")
+                        .long("all")
+                        .short('a')
+                        .conflicts_with("repo")
+                        .about("all apps in requested.toml"),
+                )
+                .arg(
+                    Arg::new("force")
+                        .long("force")
+                        .short('f')
+                        .conflicts_with("ensure")
+                        .about("force [re]install"),
+                )
+                .arg(
+                    Arg::new("ensure")
+                        .long("ensure")
+                        .short('e')
+                        .about("install missing"),
+                )
+                .arg(
+                    Arg::new("strip")
+                        .short('s')
+                        .about("minimize by using `strip`"),
+                ),
+        )
         .get_matches();
 
     let token = match matches.value_of("token") {
@@ -93,15 +148,19 @@ priority: arg -> env -> token file
             .enable_all()
             .build()
             .unwrap()
-            .block_on(app::info::info(sub_m.value_of("repo").unwrap(), token.as_ref())),
+            .block_on(app::info::info(
+                sub_m.value_of("repo").unwrap(),
+                token.as_ref(),
+            )),
         Some(("list", _sub_m)) => list_requested(&pkg_requested_file),
         Some(("upgrade", _sub_m)) => tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .unwrap()
-            .block_on(app::update::update_requested(&pkg_requested_file, token.as_ref())),
-        _ => {
-            Ok(())
-        },
+            .block_on(app::update::update_requested(
+                &pkg_requested_file,
+                token.as_ref(),
+            )),
+        _ => Ok(()),
     }
 }
