@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use reqwest::{header, Client};
 
-pub fn create(token: Option<&String>) -> Result<Client> {
+pub fn create(token: &Option<String>) -> Result<Client> {
     let mut headers = header::HeaderMap::new();
     headers.insert(
         header::ACCEPT,

@@ -1,12 +1,13 @@
 use crate::business::data::conf::model::PackageReqMap;
+use crate::business::data::conf::ConfigurationManager;
 use crate::business::{client, data::github};
-// use crate::foundation::consts;
 use anyhow::{Context, Result};
+use std::fs;
+
 // use chrono::NaiveDate;
 // use regex::Regex;
 // use semver::{Version, VersionReq};
-use std::fs;
-use std::path::Path;
+// use crate::foundation::consts;
 
 // enum VersionMatch {
 //     SemVer(VersionReq),
@@ -16,14 +17,14 @@ use std::path::Path;
 // }
 
 /// List requested packages in a given TOML `file` file.
-pub async fn update_requested(file: &Path, token: Option<&String>) -> Result<()> {
-    let file = fs::read_to_string(file)
-        .with_context(|| format!("unable to read packages file: {:?}", file))?;
+pub async fn update_requested(cm: &ConfigurationManager) -> Result<()> {
+    let file = fs::read_to_string(cm.requested.as_path())
+        .with_context(|| format!("unable to read packages file: {:?}", cm.requested))?;
 
     let toml = toml::from_str::<PackageReqMap>(&file)
-        .with_context(|| format!("malformed packages TOML file: {:?}", file))?;
+        .with_context(|| format!("malformed packages TOML file: {:?}", cm.requested))?;
 
-    let client = client::create(token)?;
+    let client = client::create(&cm.token)?;
 
     // let mut cols = Vec::with_capacity(toml.len());
 

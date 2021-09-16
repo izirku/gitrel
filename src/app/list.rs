@@ -1,16 +1,16 @@
 use crate::business::data::conf::model::PackageReqMap;
+use crate::business::data::conf::ConfigurationManager;
 use crate::foundation::util::svec2_col_maj_max_lens_unchecked;
 use anyhow::{Context, Result};
 use std::fs;
-use std::path::Path;
 
 /// List requested packages in a given TOML `file` file.
-pub fn list_requested(file: &Path) -> Result<()> {
-    let file = fs::read_to_string(file)
-        .with_context(|| format!("unable to read packages file: {:?}", file))?;
+pub fn process(cm: &ConfigurationManager) -> Result<()> {
+    let file = fs::read_to_string(cm.requested.as_path())
+        .with_context(|| format!("unable to read packages file: {:?}", cm.requested))?;
 
     let toml = toml::from_str::<PackageReqMap>(&file)
-        .with_context(|| format!("malformed packages TOML file: {:?}", file))?;
+        .with_context(|| format!("malformed packages TOML file: {:?}", cm.requested))?;
 
     let mut cols = Vec::with_capacity(toml.len());
 

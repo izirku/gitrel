@@ -26,7 +26,7 @@ impl GitHub {
 
 //         })
 //     }
-    pub fn new(token: Option<&String>) -> Result<Self> {
+    pub fn new(token: &Option<String>) -> Result<Self> {
         Ok(Self {
             client: client::create(token)?,
             per_page: 20,

@@ -1,8 +1,12 @@
+use crate::business::data::conf::ConfigurationManager;
 use crate::business::{client, data::github};
 use anyhow::Result;
+use clap::ArgMatches;
 
-pub async fn info(repo: &str, token: Option<&String>) -> Result<()> {
-    let client = client::create(token)?;
+pub async fn process(cm: &ConfigurationManager, matches: &ArgMatches) -> Result<()> {
+    let client = client::create(&cm.token)?;
+    let repo = matches.value_of("repo").unwrap();
+
     // let base_url = format!("https://api.github.com/repos/{}/", repo);
     //     let latest_release_url = Url::parse(&base_url)?.join("releases/latest")?;
     //
