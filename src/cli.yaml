@@ -1,0 +1,71 @@
+name: gitrel
+# version: comes from `Cargo.toml`
+author: Evgenii Grigorev <zjekadev@gmail.com>
+about: Install and manage binaries via GitHub releases
+args:
+  - token:
+      about: GitHub API token
+      short: t
+      long: token
+      takes_value: true
+      hide_env_values: true
+      env: GITREL_TOKEN
+  - verbose:
+      short: v
+      takes_value: true
+      multiple_values: true
+      about: Sets the level of verbosity
+subcommands:
+  - install:
+      about: install binaries
+      args:
+        - repo:
+            about: GitHub user/repo
+            takes_value: true
+            multiple_values: true
+        - all:
+            about: all apps in requested.toml
+            short: a
+            long: all
+            conflicts_with: repo
+        - force:
+            about: force [re]install
+            short: f
+            long: force
+            conflicts_with: ensure
+        - ensure:
+            about: install missing
+            short: e
+            long: ensure
+        - strip:
+            about: minimize by using `strip`
+            short: s
+            long: strip
+  - update:
+      about: update binaries
+      alias: upgrade
+      args:
+        - repo:
+            about: GitHub user/repo
+            takes_value: true
+            multiple_values: true
+        - all:
+            about: all apps in requested.toml
+            short: a
+            long: all
+            conflicts_with: repo
+        - strip:
+            about: minimize by using `strip`
+            short: s
+            long: strip
+  - uninstall:
+      about: uninstall binaries
+  - list:
+      about: list installed binaries
+  - info:
+      about: show info about a GitHub repo available binary releases
+      args:
+        - repo:
+            about: GitHub user/repo
+            takes_value: true
+            required: true

@@ -1,6 +1,6 @@
 // use gitrel::foundation::config::{ensure_gitignore, get_or_create_cofig_file};
 use anyhow::{Context, Result};
-use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
+use clap::{App, crate_name, crate_version, load_yaml };
 use directories::ProjectDirs;
 use gitrel::app;
 use gitrel::app::list::list_requested;
@@ -23,109 +23,8 @@ fn main() -> Result<()> {
     let config = conf::get_or_create_cofig_file(&config_file)?;
     file::ensure_gitignore(&gh_ignore_file)?;
 
-    let matches = App::new(crate_name!())
-        .version(crate_version!())
-        .about(crate_description!())
-        .author(crate_authors!())
-        .arg(
-            Arg::new("token")
-                .about(
-                    format!(
-                        "GitHub API token
-priority: arg -> env -> token file
- [file: {:?}]\n",
-                        gh_token_file
-                    )
-                    .as_str(),
-                )
-                .next_line_help(true)
-                .long("token")
-                .short('t')
-                .takes_value(true)
-                .env("GITREL_TOKEN")
-                .hide_env_values(true),
-        )
-        .subcommand(App::new("list").about("list installed apps"))
-        .subcommand(
-            App::new("info").about("show info about an app").arg(
-                Arg::new("repo")
-                    .about("GitHub user/repo")
-                    .takes_value(true)
-                    .required(true),
-            ),
-        )
-        .subcommand(
-            App::new("install")
-                .about("install apps")
-                // .arg(Arg::new("repo").about("GitHub user/repo").takes_value(true))
-                .arg(
-                    Arg::new("repo")
-                        .about("GitHub user/repo")
-                        .multiple_values(true),
-                )
-                .arg(
-                    Arg::new("all")
-                        .long("all")
-                        .short('a')
-                        .conflicts_with("repo")
-                        .about("all apps in requested.toml"),
-                )
-                .arg(
-                    Arg::new("force")
-                        .long("force")
-                        .short('f')
-                        .conflicts_with("ensure")
-                        .about("force [re]install"),
-                )
-                .arg(
-                    Arg::new("ensure")
-                        .long("ensure")
-                        .short('e')
-                        .about("install missing"),
-                )
-                .arg(
-                    Arg::new("strip")
-                        .short('s')
-                        .about("minimize by using `strip`"),
-                ),
-        )
-        .subcommand(App::new("uninstall").about("uninstall apps"))
-        .subcommand(
-            App::new("update")
-                .alias("upgrade")
-                .about("update apps")
-                .arg(
-                    Arg::new("repo")
-                        .about("GitHub user/repo")
-                        .multiple_values(true),
-                )
-                .arg(
-                    Arg::new("all")
-                        .long("all")
-                        .short('a')
-                        .conflicts_with("repo")
-                        .about("all apps in requested.toml"),
-                )
-                .arg(
-                    Arg::new("force")
-                        .long("force")
-                        .short('f')
-                        .conflicts_with("ensure")
-                        .about("force [re]install"),
-                )
-                .arg(
-                    Arg::new("ensure")
-                        .long("ensure")
-                        .short('e')
-                        .about("install missing"),
-                )
-                .arg(
-                    Arg::new("strip")
-                        .short('s')
-                        .about("minimize by using `strip`"),
-                ),
-        )
-        .get_matches();
+    let cli_yaml = load_yaml!("cli.yaml");
+    let matches = App::from(cli_yaml).version(crate_version!()).get_matches();
 
     let token = match matches.value_of("token") {
         Some(token) => Some(token.to_owned()),
