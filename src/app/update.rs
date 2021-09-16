@@ -1,6 +1,6 @@
 use crate::business::data::conf::model::PackageReqMap;
 use crate::business::data::conf::ConfigurationManager;
-use crate::business::{client, data::github};
+use crate::business::data::github::GitHub;
 use anyhow::{Context, Result};
 use std::fs;
 
@@ -24,7 +24,7 @@ pub async fn update_requested(cm: &ConfigurationManager) -> Result<()> {
     let toml = toml::from_str::<PackageReqMap>(&file)
         .with_context(|| format!("malformed packages TOML file: {:?}", cm.requested))?;
 
-    let client = client::create(&cm.token)?;
+    let gh = GitHub::new(cm)?;
 
     // let mut cols = Vec::with_capacity(toml.len());
 
@@ -40,6 +40,8 @@ pub async fn update_requested(cm: &ConfigurationManager) -> Result<()> {
         let mut page = 1;
         let per_page = 20;
         let max_pages = 1;
+        // let release = gh.find_match(pkg_spec.repo.as_ref().unwrap()).await?;
+
         let release = 'outer: loop {
             dbg!(page);
             let releases_url = format!(
