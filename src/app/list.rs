@@ -1,26 +1,32 @@
-use crate::business::data::conf::model::PackageReqMap;
-use crate::business::data::conf::ConfigurationManager;
-use crate::foundation::util::svec2_col_maj_max_lens_unchecked;
-use anyhow::{Context, Result};
-use std::fs;
+use anyhow::Result;
 
-/// List requested packages in a given TOML `file` file.
+use crate::{
+    business::{conf::ConfigurationManager, github::parse_repo_name},
+    foundation::util::svec2_col_maj_max_lens_unchecked,
+};
+
+/// List requested packages
 pub fn process(cm: &ConfigurationManager) -> Result<()> {
-    let file = fs::read_to_string(cm.requested.as_path())
-        .with_context(|| format!("unable to read packages file: {:?}", cm.requested))?;
+    use crate::business::conf::requested::RequestedSpec::{Detailed, Simple};
 
-    let toml = toml::from_str::<PackageReqMap>(&file)
-        .with_context(|| format!("malformed packages TOML file: {:?}", cm.requested))?;
+    let req_pkgs = cm.requested_packages()?;
 
-    let mut cols = Vec::with_capacity(toml.len());
+    let mut cols = Vec::with_capacity(req_pkgs.len());
 
-    for (name, pkg_spec) in toml.into_iter() {
-        let pkg_spec = pkg_spec.into_detailed(&name);
-        dbg!(&pkg_spec);
-        let ver = format!("@ {}", &pkg_spec.matches);
-        let repo = format!("[https://github.com/{}]", pkg_spec.repo.as_ref().unwrap());
-        cols.push(vec![name, ver, repo]);
-        dbg!(&pkg_spec);
+    for (name, pkg_spec) in req_pkgs.into_iter() {
+        match pkg_spec {
+            Simple(tag) => {
+                let repo = format!("[https://github.com/{}]", parse_repo_name(&name));
+                cols.push(vec![name, tag, repo]);
+            }
+            Detailed(details) => {
+                let repo = format!(
+                    "[https://github.com/{}]",
+                    details.repo.unwrap_or(parse_repo_name(&name))
+                );
+                cols.push(vec![name, details.matches, repo]);
+            }
+        }
     }
 
     let max_lens = svec2_col_maj_max_lens_unchecked(&cols);
@@ -28,7 +34,7 @@ pub fn process(cm: &ConfigurationManager) -> Result<()> {
     println!(
         "{:<w_name$} {:<w_ver$} {}\n",
         "BIN",
-        "VER",
+        "TAG",
         "REPO",
         w_name = max_lens[0],
         w_ver = max_lens[1],

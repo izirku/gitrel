@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{crate_version, load_yaml, App};
 use gitrel::app;
-use gitrel::business::data::conf::ConfigurationManager;
+use gitrel::business::conf::ConfigurationManager;
 use std::future::Future;
 
 fn main() -> Result<()> {
@@ -12,7 +12,7 @@ fn main() -> Result<()> {
     match matches.subcommand() {
         Some(("info", sub_m)) => rt_current_thread(app::info::process(&cm, sub_m)),
         Some(("list", _)) => app::list::process(&cm),
-        Some(("update", _sub_m)) => rt_current_thread(app::update::update_requested(&cm)),
+        // Some(("update", _sub_m)) => rt_current_thread(app::update::update_requested(&cm)),
         _ => Ok(()),
     }
 }

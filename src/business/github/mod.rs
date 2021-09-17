@@ -1,5 +1,5 @@
-use crate::business::data::conf::ConfigurationManager;
-use crate::business::data::github;
+use crate::business::conf::ConfigurationManager;
+use crate::business::github;
 use anyhow::{Context, Result};
 use reqwest::{header, Client};
 
@@ -64,7 +64,7 @@ impl GitHub {
         self
     }
 
-    pub async fn find_match(&self, repo: &str) -> Result<Option<Release>> {
+    pub async fn find_match(&self, repo: &str, tag: &str) -> Result<Option<Release>> {
         // let client = client::create(&cm.token)?;
         // let repo = matches.value_of("repo").unwrap();
 
@@ -108,5 +108,24 @@ impl GitHub {
                 break None;
             }
         })
+    }
+}
+
+pub fn parse_repo_name(candidate: &str) -> String {
+    // TODO: add regex validation here, wrap in Result<_>
+    if candidate.contains("/") {
+        candidate.to_owned()
+    } else {
+        format!("{0}/{0}", candidate)
+    }
+}
+
+pub fn parse_repo_spec(candidate: &str) -> (String, String) {
+    // TODO: add regex validation here, wrap in Result<_>
+    if candidate.contains("@") {
+        let (name, tag) = candidate.split_at(candidate.find('@').unwrap());
+        (parse_repo_name(name), tag.to_owned())
+    } else {
+        (parse_repo_name(candidate), "*".to_owned())
     }
 }

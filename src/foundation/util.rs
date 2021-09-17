@@ -18,7 +18,7 @@ pub fn svec2_row_maj_max_lens(vecs: &Vec<Vec<String>>) -> Vec<usize> {
         .collect()
 }
 
-/// Returns a vector of max lengths of strings of sub-vectors over a `vecs` transpose.
+/// Returns a vector of max lengths of strings of sub-vectors over a transpose of`vecs`.
 pub fn svec2_col_maj_max_lens_unchecked(vecs: &Vec<Vec<String>>) -> Vec<usize> {
     let mut transposed = vec![Vec::with_capacity(vecs.len()); vecs[0].len()];
     for row in vecs {

@@ -1,8 +1,10 @@
-use crate::business::data::conf::model::PackageReqMap;
-use crate::business::data::conf::ConfigurationManager;
-use crate::business::data::github::GitHub;
 use anyhow::{Context, Result};
 use std::fs;
+
+use crate::business::{
+    conf::{requested::PackageReqMap, ConfigurationManager},
+    github::GitHub,
+};
 
 // use chrono::NaiveDate;
 // use regex::Regex;
