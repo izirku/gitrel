@@ -4,6 +4,19 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use url::Url;
 
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ReleaseResponse {
+  Ok(Release),
+  Err(ErrorResponse),
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ErrorResponse {
+    message: String,
+    documentation_url: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]

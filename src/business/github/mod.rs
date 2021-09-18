@@ -3,7 +3,7 @@ mod model;
 use self::model::Release;
 use super::conf::Package;
 use crate::business::conf::ConfigurationManager;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use reqwest::{header, Client};
 
 // use super::conf::model::PackageRequested;
@@ -63,9 +63,32 @@ impl GitHub {
         self
     }
 
-    pub async fn find_match(&self, pkg: &Package<'_>) -> Result<Option<Release>> {
-        dbg!(pkg);
-        Ok(None)
+    pub async fn get_latest(&self, pkg: &Package<'_>) -> Result<Option<Release>> {
+        // dbg!(pkg);
+
+        let req_url = format!(
+            "https://api.github.com/repos/{}/releases/latest",
+            pkg.repo().unwrap()
+        );
+
+        let resp = self
+            .client
+            .get(&req_url)
+            .send()
+            .await?
+            .json::<Release>()
+            .await;
+
+
+        if let Err(e) = resp {
+            return Err(anyhow!("error fething latest release: {}", e));
+        }
+
+        if resp.status().as_u16 == 404 {
+            return Ok(None);
+        }
+
+        Ok(Some(resp.unwrap()))
         // let client = client::create(&cm.token)?;
         // let repo = matches.value_of("repo").unwrap();
 

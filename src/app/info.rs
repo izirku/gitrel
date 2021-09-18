@@ -20,7 +20,7 @@ pub async fn process(cm: &ConfigurationManager, matches: &ArgMatches) -> Result<
     // let (repo, tag) = parse_repo_spec(repo);
     let gh = GitHub::new(&cm)?;
 
-    let release = gh.find_match(&pkg).await?;
+    let release = gh.get_latest(&pkg).await?;
     println!("found:\n\n{:#?}", &release);
 
     Ok(())
