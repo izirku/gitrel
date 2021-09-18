@@ -1,6 +1,8 @@
-use super::RequestedSpec;
-
+use super::InstalledPackage;
+use super::RequestedPackage;
+#[derive(Debug)]
 pub struct Package<'a> {
     pub bin: &'a str,
-    pub requested: &'a RequestedSpec,
+    pub requested: Option<&'a RequestedPackage>,
+    pub installed: Option<&'a InstalledPackage>,
 }

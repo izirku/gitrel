@@ -5,7 +5,7 @@ use chrono::NaiveDate;
 use regex::Regex;
 
 use crate::business::{
-    conf::{Package, PackageMatchKind, RequestedSpec},
+    conf::{Package, PackageMatchKind, RequestedPackage},
     rx,
 };
 
@@ -14,10 +14,11 @@ use super::model::Release;
 /// Given a GitHub `release` and a `requested` package sped, see if we have a match.
 pub fn matches(release: &Release, package: &Package) -> Result<bool> {
     match package.requested {
+        None => Ok(false),
         // in a simple case, we do a semver match, falling back to an
         // exact match attempt in order to handle something like:
         //   `rust-analyzer = nightly`
-        RequestedSpec::Simple(tag) => {
+        Some(RequestedPackage::Simple(tag)) => {
             if let Ok(ver_req) = semver::VersionReq::parse(tag) {
                 if let Some(m) = rx::SEMVER.find(&release.tag_name) {
                     let ver_remote = semver::Version::parse(m.as_str())?;
@@ -30,7 +31,7 @@ pub fn matches(release: &Release, package: &Package) -> Result<bool> {
             }
             Ok(false)
         }
-        RequestedSpec::Detailed(details) => {
+        Some(RequestedPackage::Detailed(details)) => {
             let requested;
             // 1. maybe filter
             if let Some(expr) = &details.filter {

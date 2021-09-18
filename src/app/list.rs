@@ -7,7 +7,7 @@ use crate::{
 
 /// List requested packages
 pub fn process(cm: &ConfigurationManager) -> Result<()> {
-    use crate::business::conf::RequestedSpec::{Detailed, Simple};
+    use crate::business::conf::RequestedPackage::{Detailed, Simple};
 
     let req_pkgs = cm.requested_packages()?;
 

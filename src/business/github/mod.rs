@@ -1,13 +1,11 @@
 mod matcher;
 mod model;
 
-use crate::business::{conf::ConfigurationManager, rx};
+use self::model::Release;
+use super::conf::{Package, RequestedPackage};
+use crate::business::conf::ConfigurationManager;
 use anyhow::{Context, Result};
 use reqwest::{header, Client};
-
-use self::model::Release;
-
-use super::conf::RequestedSpec;
 
 // use super::conf::model::PackageRequested;
 //
@@ -66,8 +64,8 @@ impl GitHub {
         self
     }
 
-    pub async fn find_match(&self, requested: &RequestedSpec) -> Result<Option<Release>> {
-        dbg!(requested);
+    pub async fn find_match(&self, pkg: &Package<'_>) -> Result<Option<Release>> {
+        dbg!(pkg);
         Ok(None)
         // let client = client::create(&cm.token)?;
         // let repo = matches.value_of("repo").unwrap();

@@ -4,13 +4,13 @@ use std::collections::BTreeMap;
 use super::PackageMatchKind;
 use crate::business::{rx, util};
 
-pub type PackageReqMap = BTreeMap<String, RequestedSpec>;
+pub type PackageReqMap = BTreeMap<String, RequestedPackage>;
 // pub type PackageReqDetailMap = BTreeMap<String, DetailedRequest>;
 
 /// A Binary app request specification as it appears in `requested.toml`
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
-pub enum RequestedSpec {
+pub enum RequestedPackage {
     Simple(String),
     Detailed(DetailedRequest),
 }
@@ -44,7 +44,7 @@ fn strip_default() -> bool {
     true
 }
 
-impl RequestedSpec {
+impl RequestedPackage {
     pub fn from_str(str: &str) -> Self {
         let match_kind;
         let (repo, tag) = util::parse_gh_repo_spec(str);
