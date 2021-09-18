@@ -1,13 +1,13 @@
-use crate::business::conf::ConfigurationManager;
-use crate::business::github;
+mod matcher;
+mod model;
+
+use crate::business::{conf::ConfigurationManager, rx};
 use anyhow::{Context, Result};
 use reqwest::{header, Client};
 
 use self::model::Release;
 
-use super::conf::requested::{self, RequestedSpec};
-
-pub mod model;
+use super::conf::RequestedSpec;
 
 // use super::conf::model::PackageRequested;
 //
@@ -67,6 +67,8 @@ impl GitHub {
     }
 
     pub async fn find_match(&self, requested: &RequestedSpec) -> Result<Option<Release>> {
+        dbg!(requested);
+        Ok(None)
         // let client = client::create(&cm.token)?;
         // let repo = matches.value_of("repo").unwrap();
 
@@ -82,8 +84,8 @@ impl GitHub {
         //     println!("=== LATEST RELEASE ===");
         //     println!("{:#?}", &latest_release);
 
-        dbg!(requested);
-        Ok(None)
+        // dbg!(requested);
+        // Ok(None)
         // let mut page = 1;
 
         // Ok('outer: loop {

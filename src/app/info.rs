@@ -1,10 +1,8 @@
 use anyhow::Result;
 use clap::ArgMatches;
 
-use crate::business::conf::requested::RequestedSpec;
-use crate::business::conf::ConfigurationManager;
+use crate::business::conf::{ConfigurationManager, RequestedSpec};
 use crate::business::github::GitHub;
-use crate::business::rx;
 
 pub async fn process(cm: &ConfigurationManager, matches: &ArgMatches) -> Result<()> {
     let repo = matches.value_of("repo").unwrap(); // required arg, safe to unwrap
