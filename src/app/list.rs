@@ -1,32 +1,15 @@
+use crate::business::conf::ConfigurationManager;
+use crate::foundation::util::svec2_col_maj_max_lens_unchecked;
 use anyhow::Result;
-
-use crate::{
-    business::{conf::ConfigurationManager, util::parse_gh_repo_name},
-    foundation::util::svec2_col_maj_max_lens_unchecked,
-};
 
 /// List requested packages
 pub fn process(cm: &ConfigurationManager) -> Result<()> {
-    use crate::business::conf::RequestedPackage::{Detailed, Simple};
-
     let req_pkgs = cm.requested_packages()?;
-
     let mut cols = Vec::with_capacity(req_pkgs.len());
 
     for (name, pkg_spec) in req_pkgs.into_iter() {
-        match pkg_spec {
-            Simple(tag) => {
-                let repo = format!("[https://github.com/{}]", parse_gh_repo_name(&name));
-                cols.push(vec![name, tag, repo]);
-            }
-            Detailed(details) => {
-                let repo = format!(
-                    "[https://github.com/{}]",
-                    details.repo.unwrap_or(parse_gh_repo_name(&name))
-                );
-                cols.push(vec![name, details.matches, repo]);
-            }
-        }
+        let repo = format!("[https://github.com/{}]", &pkg_spec.repo);
+        cols.push(vec![name, pkg_spec.version, repo]);
     }
 
     let max_lens = svec2_col_maj_max_lens_unchecked(&cols);

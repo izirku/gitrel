@@ -16,11 +16,13 @@ struct ConfigFile {
     arch: Option<String>,
     os: Option<String>,
     bin_dir: Option<String>,
-    strip: Option<bool>,
+    #[serde(default)]
+    strip: bool,
 }
 
 pub struct ConfigurationManager {
     pub token: Option<String>,
+    pub strip: bool,
     requested: PathBuf,
 }
 
@@ -45,10 +47,14 @@ impl ConfigurationManager {
             None => gh_token_from_file(&gh_token_file),
         };
 
-        dbg!(config);
+        dbg!(&config);
         dbg!(&token);
 
-        Ok(ConfigurationManager { token, requested })
+        Ok(ConfigurationManager {
+            token,
+            requested,
+            strip: config.strip,
+        })
     }
 
     pub fn requested_packages(&self) -> Result<PackageReqMap> {
@@ -88,7 +94,7 @@ fn get_or_create_cofig_file(path: &Path) -> Result<ConfigFile> {
                 os: Some(consts::OS.to_string()),
                 arch: Some(consts::ARCH.to_string()),
                 bin_dir: Some(bin_dir.to_string()),
-                strip: Some(true),
+                strip: false,
             };
 
             fs::write(&path, toml::to_string(&config)?)?;

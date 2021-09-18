@@ -6,14 +6,14 @@ use crate::business::github::GitHub;
 
 pub async fn process(cm: &ConfigurationManager, matches: &ArgMatches) -> Result<()> {
     let repo = matches.value_of("repo").unwrap(); // required arg, safe to unwrap
-    let requested = RequestedPackage::from_str(repo);
-    let bin = if repo.contains("/") {
-        repo.split_at(repo.find('/').unwrap()).1.get(1..).unwrap()
+    let requested = RequestedPackage::create(repo, cm.strip);
+    let name = if repo.contains("/") {
+        repo.split_at(repo.find('/').unwrap()).1.get(1..).unwrap().to_lowercase()
     } else {
-        repo
+        repo.to_lowercase()
     };
     let pkg = Package {
-        bin,
+        name: &name,
         requested: Some(&requested),
         installed: None,
     };

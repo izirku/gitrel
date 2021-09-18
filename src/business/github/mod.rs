@@ -1,8 +1,7 @@
-mod matcher;
 mod model;
 
 use self::model::Release;
-use super::conf::{Package, RequestedPackage};
+use super::conf::Package;
 use crate::business::conf::ConfigurationManager;
 use anyhow::{Context, Result};
 use reqwest::{header, Client};

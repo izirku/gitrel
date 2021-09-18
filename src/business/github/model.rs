@@ -1,3 +1,5 @@
+use crate::business::conf::Package;
+use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use url::Url;
@@ -24,6 +26,23 @@ pub struct Release {
     pub published_at: Option<DateTime<Utc>>,
     // pub author: crate::models::User,
     pub assets: Vec<Asset>,
+}
+
+impl Release {
+    /// Given a GitHub `release` and a `package` spec, see if we have a match.
+    pub fn matches(&self, package: &Package) -> Result<bool> {
+        if let Some(req) = package.requested {
+            if let Ok(ver_req) = semver::VersionReq::parse(&req.version) {
+                let ver_remote = semver::Version::parse(&self.tag_name)?;
+                return Ok(ver_req.matches(&ver_remote));
+            } else {
+                if &req.version == &self.tag_name {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
