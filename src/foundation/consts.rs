@@ -1,10 +1,3 @@
-use lazy_static::lazy_static;
-use regex::Regex;
-
-lazy_static! {
-    pub static ref SEMVER: Regex = Regex::new(r"\d+\.\d+\.\d+(-[-.[:alnum:]]*)?").expect("error parsing regex");
-}
-
 #[cfg(target_os = "linux")]
 pub const OS: &str = "linux";
 
@@ -30,6 +23,6 @@ pub const ARCH: &str = "unsupported";
 // TODO: worry about these later
 // #[cfg(target_arch = "aarch64")]
 // pub const ARCH: &str = "aarch64";
-// 
+//
 // #[cfg(target_arch = "arm")]
 // pub const ARCH: &str = "arm";

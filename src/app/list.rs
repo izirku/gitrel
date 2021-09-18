@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    business::{conf::ConfigurationManager, github::parse_repo_name},
+    business::{conf::ConfigurationManager, util::parse_gh_repo_name},
     foundation::util::svec2_col_maj_max_lens_unchecked,
 };
 
@@ -16,13 +16,13 @@ pub fn process(cm: &ConfigurationManager) -> Result<()> {
     for (name, pkg_spec) in req_pkgs.into_iter() {
         match pkg_spec {
             Simple(tag) => {
-                let repo = format!("[https://github.com/{}]", parse_repo_name(&name));
+                let repo = format!("[https://github.com/{}]", parse_gh_repo_name(&name));
                 cols.push(vec![name, tag, repo]);
             }
             Detailed(details) => {
                 let repo = format!(
                     "[https://github.com/{}]",
-                    details.repo.unwrap_or(parse_repo_name(&name))
+                    details.repo.unwrap_or(parse_gh_repo_name(&name))
                 );
                 cols.push(vec![name, details.matches, repo]);
             }

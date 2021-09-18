@@ -5,6 +5,8 @@ use reqwest::{header, Client};
 
 use self::model::Release;
 
+use super::conf::requested::{self, RequestedSpec};
+
 pub mod model;
 
 // use super::conf::model::PackageRequested;
@@ -64,7 +66,7 @@ impl GitHub {
         self
     }
 
-    pub async fn find_match(&self, repo: &str, tag: &str) -> Result<Option<Release>> {
+    pub async fn find_match(&self, requested: &RequestedSpec) -> Result<Option<Release>> {
         // let client = client::create(&cm.token)?;
         // let repo = matches.value_of("repo").unwrap();
 
@@ -80,52 +82,35 @@ impl GitHub {
         //     println!("=== LATEST RELEASE ===");
         //     println!("{:#?}", &latest_release);
 
-        let mut page = 1;
+        dbg!(requested);
+        Ok(None)
+        // let mut page = 1;
 
-        Ok('outer: loop {
-            dbg!(page);
-            let releases_url = format!(
-                "https://api.github.com/repos/{}/releases?per_page={}&page={}",
-                repo, self.per_page, page
-            );
+        // Ok('outer: loop {
+        //     dbg!(page);
+        //     let releases_url = format!(
+        //         "https://api.github.com/repos/{}/releases?per_page={}&page={}",
+        //         repo, self.per_page, page
+        //     );
 
-            let releases = self
-                .client
-                .get(&releases_url)
-                .send()
-                .await?
-                .json::<Vec<github::model::Release>>()
-                .await?;
+        //     let releases = self
+        //         .client
+        //         .get(&releases_url)
+        //         .send()
+        //         .await?
+        //         .json::<Vec<github::model::Release>>()
+        //         .await?;
 
-            for release in releases {
-                if release.tag_name == "v0.10.0" {
-                    break 'outer Some(release);
-                }
-            }
+        //     for release in releases {
+        //         if release.tag_name == "v0.10.0" {
+        //             break 'outer Some(release);
+        //         }
+        //     }
 
-            page += 1;
-            if page > self.max_pages {
-                break None;
-            }
-        })
-    }
-}
-
-pub fn parse_repo_name(candidate: &str) -> String {
-    // TODO: add regex validation here, wrap in Result<_>
-    if candidate.contains("/") {
-        candidate.to_owned()
-    } else {
-        format!("{0}/{0}", candidate)
-    }
-}
-
-pub fn parse_repo_spec(candidate: &str) -> (String, String) {
-    // TODO: add regex validation here, wrap in Result<_>
-    if candidate.contains("@") {
-        let (name, tag) = candidate.split_at(candidate.find('@').unwrap());
-        (parse_repo_name(name), tag.to_owned())
-    } else {
-        (parse_repo_name(candidate), "*".to_owned())
+        //     page += 1;
+        //     if page > self.max_pages {
+        //         break None;
+        //     }
+        // })
     }
 }
