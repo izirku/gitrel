@@ -3,7 +3,7 @@ mod model;
 
 use self::error::ResponseError;
 pub use self::model::{GithubResponse, Release};
-use super::conf::Package;
+use super::conf::{Package, PackageMatchKind};
 use crate::business::conf::ConfigurationManager;
 use anyhow::Context;
 use reqwest::{header, Client, Method};
@@ -49,7 +49,19 @@ impl GitHub {
         self
     }
 
-    pub async fn find_matching_release(
+    pub async fn get_matching_release(
+        &self,
+        pkg: &Package<'_>,
+    ) -> Result<GithubResponse<Release>, ResponseError> {
+        match pkg.match_kind {
+            PackageMatchKind::Latest => self.get_latest_release(pkg).await,
+            PackageMatchKind::Exact => self.get_release_by_tag(pkg).await,
+            PackageMatchKind::SemVer => self.find_release(pkg).await,
+            PackageMatchKind::Unknown => Err(ResponseError::UnknownMatchKind),
+        }
+    }
+
+    async fn find_release(
         &self,
         pkg: &Package<'_>,
     ) -> Result<GithubResponse<Release>, ResponseError> {
@@ -82,7 +94,6 @@ impl GitHub {
 
             for release in releases {
                 if release.matches(pkg)? {
-                    // if release.tag_name == "v0.11.0" {
                     break 'outer Ok(GithubResponse::Ok(release));
                 }
             }
@@ -94,7 +105,7 @@ impl GitHub {
         }
     }
 
-    pub async fn get_latest(
+    async fn get_latest_release(
         &self,
         pkg: &Package<'_>,
     ) -> Result<GithubResponse<Release>, ResponseError> {
@@ -119,6 +130,35 @@ impl GitHub {
         resp.json::<GithubResponse<Release>>()
             .await
             .context("parsing latest release response body")
+            .map_err(|err| ResponseError::AnyHow(err))
+    }
+
+    async fn get_release_by_tag(
+        &self,
+        pkg: &Package<'_>,
+    ) -> Result<GithubResponse<Release>, ResponseError> {
+        // dbg!(pkg);
+
+        let req_url = format!(
+            "https://api.github.com/repos/{}/releases/tags/{}",
+            pkg.repo().unwrap(),
+            pkg.requested.unwrap().version,
+        );
+
+        let resp = self
+            .client
+            .get(&req_url)
+            .send()
+            .await
+            .context("fething a release")?;
+
+        if resp.status().as_u16() == 404 {
+            return Err(ResponseError::NotFound);
+        }
+
+        resp.json::<GithubResponse<Release>>()
+            .await
+            .context("parsing release response body")
             .map_err(|err| ResponseError::AnyHow(err))
     }
 }

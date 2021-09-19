@@ -5,5 +5,5 @@ mod requested;
 
 use self::installed::InstalledPackage;
 pub use self::manager::ConfigurationManager;
-pub use self::package::Package;
+pub use self::package::{Package, PackageMatchKind};
 pub use self::requested::{PackageReqMap, RequestedPackage};

@@ -47,16 +47,12 @@ impl Release {
     /// Given a GitHub `release` and a `package` spec, see if we have a match.
     pub fn matches(&self, package: &Package) -> Result<bool> {
         if let Some(req) = package.requested {
-            if let Ok(ver_req) = semver::VersionReq::parse(&req.version) {
-                if let Some(extacted_remote_semver) = rx::SEMVER.find(&self.tag_name) {
-                    let ver_remote = semver::Version::parse(extacted_remote_semver.as_str())
-                        .context("parsing tag as semver")?;
-                    return Ok(ver_req.matches(&ver_remote));
-                }
-            } else {
-                if &req.version == &self.tag_name {
-                    return Ok(true);
-                }
+            if let Some(extacted_remote_semver) = rx::SEMVER.find(&self.tag_name) {
+                let ver_remote = semver::Version::parse(extacted_remote_semver.as_str())
+                    .context("parsing tag as semver")?;
+                // unwrap is safe here, as we check it when `Package` is created
+                let ver_req = semver::VersionReq::parse(&req.version).unwrap();
+                return Ok(ver_req.matches(&ver_remote));
             }
         }
         Ok(false)

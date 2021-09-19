@@ -2,6 +2,8 @@
 pub enum ResponseError {
     #[error("requested resource not found")]
     NotFound,
+    #[error("unknown method of mathing requested release")]
+    UnknownMatchKind,
     #[error(transparent)]
     AnyHow(#[from] anyhow::Error), // source and Display delegate to anyhow::Error
                                    // #[error(transparent)]

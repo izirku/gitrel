@@ -12,15 +12,12 @@ pub async fn process(cm: &ConfigurationManager, matches: &ArgMatches) -> Result<
         unimplemented!();
     }
 
-    for (name, requested) in req_pkgs.into_iter() {
-        let pkg = Package {
-            name: &name,
-            requested: Some(&requested),
-            installed: None,
-        };
-        let release = gh.find_matching_release(&pkg).await?;
+    for (name, requested) in req_pkgs.iter() {
+        let pkg = Package::create(name, Some(requested), None);
+        let release = gh.get_matching_release(&pkg).await?;
+
         if let GithubResponse::Ok(release) = &release {
-            println!("{} {} -> {}", name, &requested.version, &release.tag_name);
+            println!("{} {} -> {}", name, requested.version, release.tag_name);
         }
     }
 
