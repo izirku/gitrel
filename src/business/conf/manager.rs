@@ -18,11 +18,18 @@ struct ConfigFile {
     bin_dir: Option<String>,
     #[serde(default)]
     strip: bool,
+    #[serde(default = "gh_pagination_max_default")]
+    gh_pagination_max: usize,
+}
+
+fn gh_pagination_max_default() -> usize {
+    5
 }
 
 pub struct ConfigurationManager {
     pub token: Option<String>,
     pub strip: bool,
+    pub gh_pagination_max: usize,
     requested: PathBuf,
 }
 
@@ -54,6 +61,7 @@ impl ConfigurationManager {
             token,
             requested,
             strip: config.strip,
+            gh_pagination_max: config.gh_pagination_max,
         })
     }
 
@@ -95,6 +103,7 @@ fn get_or_create_cofig_file(path: &Path) -> Result<ConfigFile> {
                 arch: Some(consts::ARCH.to_string()),
                 bin_dir: Some(bin_dir.to_string()),
                 strip: false,
+                gh_pagination_max: 5,
             };
 
             fs::write(&path, toml::to_string(&config)?)?;

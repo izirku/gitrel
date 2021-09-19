@@ -1,35 +1,21 @@
+mod error;
 mod model;
 
-use self::model::Release;
+use self::error::ResponseError;
+pub use self::model::{GithubResponse, Release};
 use super::conf::Package;
 use crate::business::conf::ConfigurationManager;
-use anyhow::{anyhow, Context, Result};
-use reqwest::{header, Client};
+use anyhow::Context;
+use reqwest::{header, Client, Method};
 
-// use super::conf::model::PackageRequested;
-//
-// pub fn find_requested(name: &str, spec: &PackageRequested) {}
 pub struct GitHub {
     client: Client,
     per_page: u32,
-    // curr_page: u32,
-    max_pages: u32,
+    max_pages: usize,
 }
 
-// struct GitHubBuilder {
-//     client: Option<Client>,
-//     per_page: Option<u32>,
-//     page: Option<u32>,
-// }
-
 impl GitHub {
-    //     pub fn build(token: Option<&String>) -> Result<GitHub> {
-    //         Ok(Self {
-    //             client: &client::create(token)?,
-
-    //         })
-    //     }
-    pub fn new(cm: &ConfigurationManager) -> Result<Self> {
+    pub fn new(cm: &ConfigurationManager) -> Result<Self, anyhow::Error> {
         let mut headers = header::HeaderMap::new();
         headers.insert(
             header::ACCEPT,
@@ -42,7 +28,7 @@ impl GitHub {
         if let Some(token) = &cm.token {
             headers.insert(
                 header::AUTHORIZATION,
-                header::HeaderValue::from_str(&token).unwrap(),
+                header::HeaderValue::from_str(&token)?,
             );
         }
 
@@ -54,7 +40,7 @@ impl GitHub {
         Ok(Self {
             client,
             per_page: 20,
-            max_pages: 3,
+            max_pages: cm.gh_pagination_max,
         })
     }
 
@@ -63,7 +49,55 @@ impl GitHub {
         self
     }
 
-    pub async fn get_latest(&self, pkg: &Package<'_>) -> Result<Option<Release>> {
+    pub async fn find_matching_release(
+        &self,
+        pkg: &Package<'_>,
+    ) -> Result<GithubResponse<Release>, ResponseError> {
+        let req_url = format!(
+            "https://api.github.com/repos/{}/releases?per_page={}",
+            pkg.repo().unwrap(),
+            self.per_page,
+        );
+
+        let mut curr_page = 1;
+
+        'outer: loop {
+            dbg!(curr_page);
+
+            let resp = self
+                .client
+                .request(Method::GET, &req_url)
+                .query(&[("page", curr_page)])
+                .send()
+                .await
+                .with_context(|| "fething next page")?;
+
+            dbg!(resp.status());
+
+            if resp.status().as_u16() != 200 {
+                return Err(ResponseError::NotFound);
+            }
+
+            let releases: Vec<Release> = resp.json().await.context("parsing response body")?;
+
+            for release in releases {
+                if release.matches(pkg)? {
+                    // if release.tag_name == "v0.11.0" {
+                    break 'outer Ok(GithubResponse::Ok(release));
+                }
+            }
+
+            curr_page += 1;
+            if curr_page > self.max_pages {
+                break Err(ResponseError::NotFound);
+            }
+        }
+    }
+
+    pub async fn get_latest(
+        &self,
+        pkg: &Package<'_>,
+    ) -> Result<GithubResponse<Release>, ResponseError> {
         // dbg!(pkg);
 
         let req_url = format!(
@@ -75,64 +109,16 @@ impl GitHub {
             .client
             .get(&req_url)
             .send()
-            .await?
-            .json::<Release>()
-            .await;
+            .await
+            .context("fething latest release")?;
 
-
-        if let Err(e) = resp {
-            return Err(anyhow!("error fething latest release: {}", e));
+        if resp.status().as_u16() == 404 {
+            return Err(ResponseError::NotFound);
         }
 
-        if resp.status().as_u16 == 404 {
-            return Ok(None);
-        }
-
-        Ok(Some(resp.unwrap()))
-        // let client = client::create(&cm.token)?;
-        // let repo = matches.value_of("repo").unwrap();
-
-        // let base_url = format!("https://api.github.com/repos/{}/", repo);
-        //     let latest_release_url = Url::parse(&base_url)?.join("releases/latest")?;
-        //
-        //     let latest_release = client
-        //         .get(latest_release_url)
-        //         .send()
-        //         .await?
-        //         .json::<github::model::Release>()
-        //         .await?;
-        //     println!("=== LATEST RELEASE ===");
-        //     println!("{:#?}", &latest_release);
-
-        // dbg!(requested);
-        // Ok(None)
-        // let mut page = 1;
-
-        // Ok('outer: loop {
-        //     dbg!(page);
-        //     let releases_url = format!(
-        //         "https://api.github.com/repos/{}/releases?per_page={}&page={}",
-        //         repo, self.per_page, page
-        //     );
-
-        //     let releases = self
-        //         .client
-        //         .get(&releases_url)
-        //         .send()
-        //         .await?
-        //         .json::<Vec<github::model::Release>>()
-        //         .await?;
-
-        //     for release in releases {
-        //         if release.tag_name == "v0.10.0" {
-        //             break 'outer Some(release);
-        //         }
-        //     }
-
-        //     page += 1;
-        //     if page > self.max_pages {
-        //         break None;
-        //     }
-        // })
+        resp.json::<GithubResponse<Release>>()
+            .await
+            .context("parsing latest release response body")
+            .map_err(|err| ResponseError::AnyHow(err))
     }
 }

@@ -12,6 +12,7 @@ fn main() -> Result<()> {
     match matches.subcommand() {
         Some(("info", sub_m)) => rt_current_thread(app::info::process(&cm, sub_m)),
         Some(("list", _)) => app::list::process(&cm),
+        Some(("install", sub_m)) => rt_current_thread(app::install::process(&cm, sub_m)),
         // Some(("update", _sub_m)) => rt_current_thread(app::update::update_requested(&cm)),
         _ => Ok(()),
     }

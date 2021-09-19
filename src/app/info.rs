@@ -8,7 +8,11 @@ pub async fn process(cm: &ConfigurationManager, matches: &ArgMatches) -> Result<
     let repo = matches.value_of("repo").unwrap(); // required arg, safe to unwrap
     let requested = RequestedPackage::create(repo, cm.strip);
     let name = if repo.contains("/") {
-        repo.split_at(repo.find('/').unwrap()).1.get(1..).unwrap().to_lowercase()
+        repo.split_at(repo.find('/').unwrap())
+            .1
+            .get(1..)
+            .unwrap()
+            .to_lowercase()
     } else {
         repo.to_lowercase()
     };

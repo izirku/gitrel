@@ -1,20 +1,22 @@
 use crate::business::conf::Package;
-use anyhow::Result;
+use crate::business::rx;
+use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use url::Url;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(untagged)]
-pub enum ReleaseResponse {
-  Ok(Release),
-  Err(ErrorResponse),
+pub enum GithubResponse<T> {
+    Ok(T),
+    Err(ErrorResponse),
 }
 
-#[derive(Serialize, Deserialize)]
+// #[derive(Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ErrorResponse {
     message: String,
-    documentation_url: String,
+    // documentation_url: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -46,8 +48,11 @@ impl Release {
     pub fn matches(&self, package: &Package) -> Result<bool> {
         if let Some(req) = package.requested {
             if let Ok(ver_req) = semver::VersionReq::parse(&req.version) {
-                let ver_remote = semver::Version::parse(&self.tag_name)?;
-                return Ok(ver_req.matches(&ver_remote));
+                if let Some(extacted_remote_semver) = rx::SEMVER.find(&self.tag_name) {
+                    let ver_remote = semver::Version::parse(extacted_remote_semver.as_str())
+                        .context("parsing tag as semver")?;
+                    return Ok(ver_req.matches(&ver_remote));
+                }
             } else {
                 if &req.version == &self.tag_name {
                     return Ok(true);
