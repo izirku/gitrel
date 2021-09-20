@@ -1,10 +1,10 @@
 use crate::business::conf::ConfigurationManager;
 use crate::foundation::util::svec2_col_maj_max_lens_unchecked;
-use anyhow::Result;
+use crate::Result;
 
 /// List requested packages
 pub fn process(cm: &ConfigurationManager) -> Result<()> {
-    let req_pkgs = cm.requested_packages()?;
+    let req_pkgs = cm.get_requested_packages()?;
     let mut cols = Vec::with_capacity(req_pkgs.len());
 
     for (name, pkg_spec) in req_pkgs.into_iter() {

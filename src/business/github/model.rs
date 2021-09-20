@@ -19,7 +19,7 @@ pub struct ErrorResponse {
     // documentation_url: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub struct Release {
@@ -38,7 +38,8 @@ pub struct Release {
     pub draft: bool,
     pub prerelease: bool,
     pub created_at: Option<DateTime<Utc>>,
-    pub published_at: Option<DateTime<Utc>>,
+    pub published_at: DateTime<Utc>,
+    // pub published_at: Option<DateTime<Utc>>,
     // pub author: crate::models::User,
     pub assets: Vec<Asset>,
 }

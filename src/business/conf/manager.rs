@@ -1,16 +1,13 @@
 use super::installed::InstalledPackageMap;
 use super::requested::PackageReqMap;
-use crate::business::error::AppError;
+use crate::error::AppError;
 use crate::foundation::consts;
-use anyhow::{Context, Result};
+use anyhow::Context;
 use clap::{crate_name, ArgMatches};
-use directories::BaseDirs;
-use directories::ProjectDirs;
+use directories::{BaseDirs, ProjectDirs};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::fs::File;
-use std::path::Path;
-use std::path::PathBuf;
+use std::fs::{self, File};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct ConfigFile {
@@ -77,7 +74,7 @@ impl ConfigurationManager {
         })
     }
 
-    pub fn requested_packages(&self) -> Result<PackageReqMap, AppError> {
+    pub fn get_requested_packages(&self) -> Result<PackageReqMap, AppError> {
         match fs::read_to_string(self.requested.as_path()) {
             Ok(contents) => toml::from_str::<PackageReqMap>(&contents)
                 .context(format!(
@@ -93,7 +90,7 @@ impl ConfigurationManager {
         }
     }
 
-    pub fn installed_packages(&self) -> Result<InstalledPackageMap, AppError> {
+    pub fn get_installed_packages(&self) -> Result<InstalledPackageMap, AppError> {
         match fs::read_to_string(self.installed.as_path()) {
             Ok(contents) => toml::from_str::<InstalledPackageMap>(&contents)
                 .context(format!(
@@ -107,6 +104,18 @@ impl ConfigurationManager {
                 self.installed
             )))),
         }
+    }
+
+    pub fn put_installed_packages(
+        &self,
+        installed_packages: &InstalledPackageMap,
+    ) -> Result<(), AppError> {
+        fs::write(
+            self.installed.as_path(),
+            toml::to_string(installed_packages).context("parsing to toml")?,
+        )
+        .context("writing toml")?;
+        Ok(())
     }
 }
 
@@ -128,7 +137,7 @@ fn get_or_create_cofig_file(path: &Path) -> Result<ConfigFile, AppError> {
                 gh_pagination_max: gh_pagination_max_default(),
             };
 
-            fs::write(&path, toml::to_string(&config).context("parsing toml")?)
+            fs::write(&path, toml::to_string(&config).context("parsing to toml")?)
                 .context("writing toml")?;
             Ok(config)
         }
@@ -148,13 +157,16 @@ fn gh_token_from_file(path: &Path) -> Option<String> {
     }
 }
 
-fn ensure_gitignore(path: &Path) -> Result<()> {
+fn ensure_gitignore(path: &Path) -> Result<(), AppError> {
     match File::open(path) {
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
             fs::write(path, "github_token.plain")
-                .with_context(|| format!("unable to create file: {:?}", path))
+                .context(format!("unable to create file: {:?}", path))
+                .map_err(AppError::AnyHow)
         }
-        Err(err) => Err(err).with_context(|| format!("unable to access file: {:?}", path)),
+        Err(e) => Err(AppError::AnyHow(
+            anyhow::Error::new(e).context(format!("unable to access file: {:?}", path)),
+        )),
         _ => Ok(()),
     }
 }

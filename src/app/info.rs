@@ -1,6 +1,6 @@
 use crate::business::conf::{ConfigurationManager, Package, RequestedPackage};
 use crate::business::github::GitHub;
-use anyhow::Result;
+use crate::Result;
 use clap::ArgMatches;
 
 pub async fn process(cm: &ConfigurationManager, matches: &ArgMatches) -> Result<()> {

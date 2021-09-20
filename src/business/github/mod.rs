@@ -2,7 +2,7 @@ mod model;
 
 pub use self::model::{GithubResponse, Release};
 use super::conf::{Package, PackageMatchKind};
-use super::error::AppError;
+use crate::error::AppError;
 use crate::business::conf::ConfigurationManager;
 use anyhow::Context;
 use reqwest::{header, Client, Method};
