@@ -27,7 +27,7 @@ impl GitHub {
         if let Some(token) = &cm.token {
             headers.insert(
                 header::AUTHORIZATION,
-                header::HeaderValue::from_str(&token)?,
+                header::HeaderValue::from_str(token)?,
             );
         }
 
@@ -126,7 +126,7 @@ impl GitHub {
         resp.json::<GithubResponse<Release>>()
             .await
             .context("parsing latest release response body")
-            .map_err(|err| AppError::AnyHow(err))
+            .map_err(AppError::AnyHow)
     }
 
     async fn get_release_by_tag(
@@ -155,6 +155,6 @@ impl GitHub {
         resp.json::<GithubResponse<Release>>()
             .await
             .context("parsing release response body")
-            .map_err(|err| AppError::AnyHow(err))
+            .map_err(AppError::AnyHow)
     }
 }

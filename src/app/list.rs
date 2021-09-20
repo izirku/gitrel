@@ -15,10 +15,9 @@ pub fn process(cm: &ConfigurationManager) -> Result<()> {
     let max_lens = svec2_col_maj_max_lens_unchecked(&cols);
 
     println!(
-        "{:<w_name$} {:<w_ver$} {}\n",
+        "{:<w_name$} {:<w_ver$} REPO\n",
         "BIN",
         "TAG",
-        "REPO",
         w_name = max_lens[0],
         w_ver = max_lens[1],
     );

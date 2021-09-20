@@ -6,7 +6,7 @@ use clap::ArgMatches;
 pub async fn process(cm: &ConfigurationManager, matches: &ArgMatches) -> Result<()> {
     let req_pkgs = cm.requested_packages()?;
 
-    let gh = GitHub::new(&cm)?;
+    let gh = GitHub::new(cm)?;
 
     if !matches.is_present("all") {
         unimplemented!();

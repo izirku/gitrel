@@ -78,22 +78,18 @@ impl ConfigurationManager {
     }
 
     pub fn requested_packages(&self) -> Result<PackageReqMap, AppError> {
-        if self.requested.exists() {
-            let file = fs::read_to_string(self.requested.as_path()).with_context(|| {
-                format!(
-                    "unable to read requested packages file: {:?}",
-                    self.requested
-                )
-            })?;
-
-            toml::from_str::<PackageReqMap>(&file)
+        match fs::read_to_string(self.requested.as_path()) {
+            Ok(contents) => toml::from_str::<PackageReqMap>(&contents)
                 .context(format!(
                     "malformed requested packages TOML file: {:?}",
                     self.requested
                 ))
-                .map_err(|err| AppError::AnyHow(err))
-        } else {
-            Err(AppError::NotFound)
+                .map_err(AppError::AnyHow),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(AppError::NotFound),
+            Err(e) => Err(AppError::AnyHow(anyhow::Error::new(e).context(format!(
+                "unable to read requested packages file: {:?}",
+                self.requested
+            )))),
         }
     }
 
@@ -104,7 +100,7 @@ impl ConfigurationManager {
                     "malformed installed packages TOML file: {:?}",
                     self.installed
                 ))
-                .map_err(|err| AppError::AnyHow(err)),
+                .map_err(AppError::AnyHow),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(AppError::NotFound),
             Err(e) => Err(AppError::AnyHow(anyhow::Error::new(e).context(format!(
                 "unable to read installed packages file: {:?}",
@@ -121,7 +117,7 @@ fn get_or_create_cofig_file(path: &Path) -> Result<ConfigFile, AppError> {
     match fs::read_to_string(&path) {
         Ok(config) => toml::from_str(&config)
             .with_context(|| format!("reading config: {:?}", path))
-            .map_err(|err| AppError::AnyHow(err)),
+            .map_err(AppError::AnyHow),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             let config = ConfigFile {
                 os: Some(consts::OS.to_string()),

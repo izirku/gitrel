@@ -5,7 +5,7 @@ use clap::ArgMatches;
 
 pub async fn process(cm: &ConfigurationManager, matches: &ArgMatches) -> Result<()> {
     let repo = matches.value_of("repo").unwrap(); // required arg, safe to unwrap
-    let name = if repo.contains("/") {
+    let name = if repo.contains('/') {
         repo.split_at(repo.find('/').unwrap())
             .1
             .get(1..)
@@ -16,7 +16,7 @@ pub async fn process(cm: &ConfigurationManager, matches: &ArgMatches) -> Result<
     };
     let requested = RequestedPackage::create(repo, cm.strip);
     let pkg = Package::create(&name, Some(&requested), None);
-    let gh = GitHub::new(&cm)?;
+    let gh = GitHub::new(cm)?;
 
     let release = gh.get_matching_release(&pkg).await?;
     println!("found:\n\n{:#?}", &release);
