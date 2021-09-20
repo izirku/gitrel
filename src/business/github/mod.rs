@@ -2,8 +2,8 @@ mod model;
 
 pub use self::model::{GithubResponse, Release};
 use super::conf::{Package, PackageMatchKind};
-use crate::error::AppError;
 use crate::business::conf::ConfigurationManager;
+use crate::error::AppError;
 use anyhow::Context;
 use reqwest::{header, Client, Method};
 
@@ -25,10 +25,7 @@ impl GitHub {
             header::HeaderValue::from_static("reqwest"),
         );
         if let Some(token) = &cm.token {
-            headers.insert(
-                header::AUTHORIZATION,
-                header::HeaderValue::from_str(token)?,
-            );
+            headers.insert(header::AUTHORIZATION, header::HeaderValue::from_str(token)?);
         }
 
         let client = reqwest::Client::builder()
@@ -43,28 +40,26 @@ impl GitHub {
         })
     }
 
-    pub fn per_page(&mut self, per_page: u32) -> &mut Self {
-        self.per_page = per_page;
-        self
-    }
+    // pub fn per_page(&mut self, per_page: u32) -> &mut Self {
+    //     self.per_page = per_page;
+    //     self
+    // }
 
     pub async fn get_matching_release(
         &self,
-        pkg: &Package<'_>,
+        pkg: &Package,
     ) -> Result<GithubResponse<Release>, AppError> {
-        match pkg.match_kind {
+        match pkg.match_kind() {
             PackageMatchKind::Latest => self.get_latest_release(pkg).await,
             PackageMatchKind::Exact => self.get_release_by_tag(pkg).await,
             PackageMatchKind::SemVer => self.find_release(pkg).await,
-            PackageMatchKind::Unknown => Err(AppError::UnknownMatchKind),
         }
     }
 
-    async fn find_release(&self, pkg: &Package<'_>) -> Result<GithubResponse<Release>, AppError> {
+    async fn find_release(&self, pkg: &Package) -> Result<GithubResponse<Release>, AppError> {
         let req_url = format!(
             "https://api.github.com/repos/{}/releases?per_page={}",
-            pkg.repo().unwrap(),
-            self.per_page,
+            &pkg.repo, self.per_page,
         );
 
         let mut curr_page = 1;
@@ -101,16 +96,10 @@ impl GitHub {
         }
     }
 
-    async fn get_latest_release(
-        &self,
-        pkg: &Package<'_>,
-    ) -> Result<GithubResponse<Release>, AppError> {
+    async fn get_latest_release(&self, pkg: &Package) -> Result<GithubResponse<Release>, AppError> {
         // dbg!(pkg);
 
-        let req_url = format!(
-            "https://api.github.com/repos/{}/releases/latest",
-            pkg.repo().unwrap()
-        );
+        let req_url = format!("https://api.github.com/repos/{}/releases/latest", &pkg.repo,);
 
         let resp = self
             .client
@@ -129,16 +118,12 @@ impl GitHub {
             .map_err(AppError::AnyHow)
     }
 
-    async fn get_release_by_tag(
-        &self,
-        pkg: &Package<'_>,
-    ) -> Result<GithubResponse<Release>, AppError> {
+    async fn get_release_by_tag(&self, pkg: &Package) -> Result<GithubResponse<Release>, AppError> {
         // dbg!(pkg);
 
         let req_url = format!(
             "https://api.github.com/repos/{}/releases/tags/{}",
-            pkg.repo().unwrap(),
-            pkg.requested.unwrap().version,
+            &pkg.repo, &pkg.requested,
         );
 
         let resp = self

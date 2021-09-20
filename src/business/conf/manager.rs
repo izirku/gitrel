@@ -1,5 +1,4 @@
-use super::installed::InstalledPackageMap;
-use super::requested::PackageReqMap;
+use crate::business::conf::package::PackageMap;
 use crate::error::AppError;
 use crate::foundation::consts;
 use anyhow::Context;
@@ -35,8 +34,7 @@ pub struct ConfigurationManager {
     pub strip: bool,
     pub gh_pagination_per_page: usize,
     pub gh_pagination_max: usize,
-    requested: PathBuf,
-    installed: PathBuf,
+    packages: PathBuf,
 }
 
 impl ConfigurationManager {
@@ -50,8 +48,7 @@ impl ConfigurationManager {
         let config_file = cfg_dir.join("config.toml");
         let gh_token_file = cfg_dir.join("github_token.plain");
         let gh_ignore_file = cfg_dir.join(".gitignore");
-        let requested = cfg_dir.join("requested.toml");
-        let installed = cfg_dir.join("installed.toml");
+        let packages = cfg_dir.join("packages.toml");
 
         let config = get_or_create_cofig_file(&config_file)?;
         ensure_gitignore(&gh_ignore_file)?;
@@ -69,50 +66,27 @@ impl ConfigurationManager {
             strip: config.strip,
             gh_pagination_per_page: config.gh_pagination_per_page,
             gh_pagination_max: config.gh_pagination_max,
-            requested,
-            installed,
+            packages,
         })
     }
 
-    pub fn get_requested_packages(&self) -> Result<PackageReqMap, AppError> {
-        match fs::read_to_string(self.requested.as_path()) {
-            Ok(contents) => toml::from_str::<PackageReqMap>(&contents)
-                .context(format!(
-                    "malformed requested packages TOML file: {:?}",
-                    self.requested
-                ))
+    pub fn get_packages(&self) -> Result<PackageMap, AppError> {
+        match fs::read_to_string(self.packages.as_path()) {
+            Ok(contents) => toml::from_str::<PackageMap>(&contents)
+                .context(format!("malformed ackages TOML file: {:?}", self.packages))
                 .map_err(AppError::AnyHow),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(AppError::NotFound),
-            Err(e) => Err(AppError::AnyHow(anyhow::Error::new(e).context(format!(
-                "unable to read requested packages file: {:?}",
-                self.requested
-            )))),
+            Err(e) => Err(AppError::AnyHow(
+                anyhow::Error::new(e)
+                    .context(format!("unable to read ackages file: {:?}", self.packages)),
+            )),
         }
     }
 
-    pub fn get_installed_packages(&self) -> Result<InstalledPackageMap, AppError> {
-        match fs::read_to_string(self.installed.as_path()) {
-            Ok(contents) => toml::from_str::<InstalledPackageMap>(&contents)
-                .context(format!(
-                    "malformed installed packages TOML file: {:?}",
-                    self.installed
-                ))
-                .map_err(AppError::AnyHow),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(AppError::NotFound),
-            Err(e) => Err(AppError::AnyHow(anyhow::Error::new(e).context(format!(
-                "unable to read installed packages file: {:?}",
-                self.installed
-            )))),
-        }
-    }
-
-    pub fn put_installed_packages(
-        &self,
-        installed_packages: &InstalledPackageMap,
-    ) -> Result<(), AppError> {
+    pub fn put_packages(&self, packages: &PackageMap) -> Result<(), AppError> {
         fs::write(
-            self.installed.as_path(),
-            toml::to_string(installed_packages).context("parsing to toml")?,
+            self.packages.as_path(),
+            toml::to_string(packages).context("parsing to toml")?,
         )
         .context("writing toml")?;
         Ok(())

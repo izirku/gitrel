@@ -1,15 +1,24 @@
 use crate::business::conf::ConfigurationManager;
+use crate::error::AppError;
 use crate::foundation::util::svec2_col_maj_max_lens_unchecked;
 use crate::Result;
 
 /// List requested packages
 pub fn process(cm: &ConfigurationManager) -> Result<()> {
-    let req_pkgs = cm.get_requested_packages()?;
-    let mut cols = Vec::with_capacity(req_pkgs.len());
+    let packages = match cm.get_packages() {
+        Ok(packages) => packages,
+        Err(AppError::NotFound) => {
+            println!("nothing is installed on this system");
+            return Ok(());
+        }
+        Err(e) => return Err(e),
+    };
 
-    for (name, pkg_spec) in req_pkgs.into_iter() {
+    let mut cols = Vec::with_capacity(packages.len());
+
+    for (name, pkg_spec) in packages.into_iter() {
         let repo = format!("[https://github.com/{}]", &pkg_spec.repo);
-        cols.push(vec![name, pkg_spec.version, repo]);
+        cols.push(vec![name, pkg_spec.requested, repo]);
     }
 
     let max_lens = svec2_col_maj_max_lens_unchecked(&cols);
