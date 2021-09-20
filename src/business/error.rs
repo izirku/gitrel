@@ -1,5 +1,5 @@
 #[derive(thiserror::Error, Debug)]
-pub enum ResponseError {
+pub enum AppError {
     #[error("requested resource not found")]
     NotFound,
     #[error("unknown method of mathing requested release")]

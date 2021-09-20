@@ -1,3 +1,7 @@
+use super::installed::InstalledPackageMap;
+use super::requested::PackageReqMap;
+use crate::business::error::AppError;
+use crate::foundation::consts;
 use anyhow::{Context, Result};
 use clap::{crate_name, ArgMatches};
 use directories::BaseDirs;
@@ -8,9 +12,6 @@ use std::fs::File;
 use std::path::Path;
 use std::path::PathBuf;
 
-use super::requested::PackageReqMap;
-use crate::foundation::consts;
-
 #[derive(Debug, Deserialize, Serialize)]
 struct ConfigFile {
     arch: Option<String>,
@@ -18,8 +19,14 @@ struct ConfigFile {
     bin_dir: Option<String>,
     #[serde(default)]
     strip: bool,
+    #[serde(default = "gh_pagination_per_page_default")]
+    pub gh_pagination_per_page: usize,
     #[serde(default = "gh_pagination_max_default")]
     gh_pagination_max: usize,
+}
+
+fn gh_pagination_per_page_default() -> usize {
+    20
 }
 
 fn gh_pagination_max_default() -> usize {
@@ -29,12 +36,14 @@ fn gh_pagination_max_default() -> usize {
 pub struct ConfigurationManager {
     pub token: Option<String>,
     pub strip: bool,
+    pub gh_pagination_per_page: usize,
     pub gh_pagination_max: usize,
     requested: PathBuf,
+    installed: PathBuf,
 }
 
 impl ConfigurationManager {
-    pub fn with_clap_matches(matches: &ArgMatches) -> Result<Self> {
+    pub fn with_clap_matches(matches: &ArgMatches) -> Result<Self, AppError> {
         let proj_dirs = ProjectDirs::from("com.github", "izirku", crate_name!()).unwrap();
 
         let cfg_dir = proj_dirs.config_dir();
@@ -45,6 +54,7 @@ impl ConfigurationManager {
         let gh_token_file = cfg_dir.join("github_token.plain");
         let gh_ignore_file = cfg_dir.join(".gitignore");
         let requested = cfg_dir.join("requested.toml");
+        let installed = cfg_dir.join("installed.toml");
 
         let config = get_or_create_cofig_file(&config_file)?;
         ensure_gitignore(&gh_ignore_file)?;
@@ -59,57 +69,76 @@ impl ConfigurationManager {
 
         Ok(ConfigurationManager {
             token,
-            requested,
             strip: config.strip,
+            gh_pagination_per_page: config.gh_pagination_per_page,
             gh_pagination_max: config.gh_pagination_max,
+            requested,
+            installed,
         })
     }
 
-    pub fn requested_packages(&self) -> Result<PackageReqMap> {
-        let file = fs::read_to_string(self.requested.as_path())
-            .with_context(|| format!("unable to read packages file: {:?}", self.requested))?;
+    pub fn requested_packages(&self) -> Result<PackageReqMap, AppError> {
+        if self.requested.exists() {
+            let file = fs::read_to_string(self.requested.as_path()).with_context(|| {
+                format!(
+                    "unable to read requested packages file: {:?}",
+                    self.requested
+                )
+            })?;
 
-        toml::from_str::<PackageReqMap>(&file)
-            .with_context(|| format!("malformed packages TOML file: {:?}", self.requested))
+            toml::from_str::<PackageReqMap>(&file)
+                .context(format!(
+                    "malformed requested packages TOML file: {:?}",
+                    self.requested
+                ))
+                .map_err(|err| AppError::AnyHow(err))
+        } else {
+            Err(AppError::NotFound)
+        }
+    }
 
-        //     let requested = toml::from_str::<PackageReqMap>(&file)
-        //         .with_context(|| format!("malformed packages TOML file: {:?}", self.requested))?;
-
-        //     // let mut detailed_request_map = Vec::with_capacity(toml.len());
-        //     let mut detailed_request_map: PackageReqDetailMap = BTreeMap::from(requested);
-
-        //     for (name, pkg_spec) in toml.into_iter() {
-        //         let pkg_spec = pkg_spec.into_detailed(&name);
-        //         dbg!(&pkg_spec);
-        //         let ver = format!("@ {}", &pkg_spec.matches);
-        //         let repo = format!("[https://github.com/{}]", pkg_spec.repo.as_ref().unwrap());
-        //         cols.push(vec![name, ver, repo]);
-        //         dbg!(&pkg_spec);
-        //     }
+    pub fn installed_packages(&self) -> Result<InstalledPackageMap, AppError> {
+        match fs::read_to_string(self.installed.as_path()) {
+            Ok(contents) => toml::from_str::<InstalledPackageMap>(&contents)
+                .context(format!(
+                    "malformed installed packages TOML file: {:?}",
+                    self.installed
+                ))
+                .map_err(|err| AppError::AnyHow(err)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(AppError::NotFound),
+            Err(e) => Err(AppError::AnyHow(anyhow::Error::new(e).context(format!(
+                "unable to read installed packages file: {:?}",
+                self.installed
+            )))),
+        }
     }
 }
 
-fn get_or_create_cofig_file(path: &Path) -> Result<ConfigFile> {
+fn get_or_create_cofig_file(path: &Path) -> Result<ConfigFile, AppError> {
     let base_dirs = BaseDirs::new().unwrap();
     let bin_dir = base_dirs.executable_dir().unwrap().to_string_lossy();
 
     match fs::read_to_string(&path) {
-        Ok(config) => {
-            toml::from_str(&config).with_context(|| format!("reading config: {:?}", path))
-        }
+        Ok(config) => toml::from_str(&config)
+            .with_context(|| format!("reading config: {:?}", path))
+            .map_err(|err| AppError::AnyHow(err)),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             let config = ConfigFile {
                 os: Some(consts::OS.to_string()),
                 arch: Some(consts::ARCH.to_string()),
                 bin_dir: Some(bin_dir.to_string()),
                 strip: false,
-                gh_pagination_max: 5,
+                gh_pagination_per_page: gh_pagination_per_page_default(),
+                gh_pagination_max: gh_pagination_max_default(),
             };
 
-            fs::write(&path, toml::to_string(&config)?)?;
+            fs::write(&path, toml::to_string(&config).context("parsing toml")?)
+                .context("writing toml")?;
             Ok(config)
         }
-        Err(err) => Err(err).with_context(|| format!("unable to read config file: {:?}", path)),
+        Err(e) => Err(AppError::AnyHow(
+            anyhow::Error::new(e).context(format!("unable to read config file: {:?}", path)),
+        )),
     }
 }
 

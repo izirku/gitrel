@@ -1,9 +1,8 @@
-mod error;
 mod model;
 
-use self::error::ResponseError;
 pub use self::model::{GithubResponse, Release};
 use super::conf::{Package, PackageMatchKind};
+use super::error::AppError;
 use crate::business::conf::ConfigurationManager;
 use anyhow::Context;
 use reqwest::{header, Client, Method};
@@ -52,19 +51,16 @@ impl GitHub {
     pub async fn get_matching_release(
         &self,
         pkg: &Package<'_>,
-    ) -> Result<GithubResponse<Release>, ResponseError> {
+    ) -> Result<GithubResponse<Release>, AppError> {
         match pkg.match_kind {
             PackageMatchKind::Latest => self.get_latest_release(pkg).await,
             PackageMatchKind::Exact => self.get_release_by_tag(pkg).await,
             PackageMatchKind::SemVer => self.find_release(pkg).await,
-            PackageMatchKind::Unknown => Err(ResponseError::UnknownMatchKind),
+            PackageMatchKind::Unknown => Err(AppError::UnknownMatchKind),
         }
     }
 
-    async fn find_release(
-        &self,
-        pkg: &Package<'_>,
-    ) -> Result<GithubResponse<Release>, ResponseError> {
+    async fn find_release(&self, pkg: &Package<'_>) -> Result<GithubResponse<Release>, AppError> {
         let req_url = format!(
             "https://api.github.com/repos/{}/releases?per_page={}",
             pkg.repo().unwrap(),
@@ -87,7 +83,7 @@ impl GitHub {
             dbg!(resp.status());
 
             if resp.status().as_u16() != 200 {
-                return Err(ResponseError::NotFound);
+                return Err(AppError::NotFound);
             }
 
             let releases: Vec<Release> = resp.json().await.context("parsing response body")?;
@@ -100,7 +96,7 @@ impl GitHub {
 
             curr_page += 1;
             if curr_page > self.max_pages {
-                break Err(ResponseError::NotFound);
+                break Err(AppError::NotFound);
             }
         }
     }
@@ -108,7 +104,7 @@ impl GitHub {
     async fn get_latest_release(
         &self,
         pkg: &Package<'_>,
-    ) -> Result<GithubResponse<Release>, ResponseError> {
+    ) -> Result<GithubResponse<Release>, AppError> {
         // dbg!(pkg);
 
         let req_url = format!(
@@ -124,19 +120,19 @@ impl GitHub {
             .context("fething latest release")?;
 
         if resp.status().as_u16() == 404 {
-            return Err(ResponseError::NotFound);
+            return Err(AppError::NotFound);
         }
 
         resp.json::<GithubResponse<Release>>()
             .await
             .context("parsing latest release response body")
-            .map_err(|err| ResponseError::AnyHow(err))
+            .map_err(|err| AppError::AnyHow(err))
     }
 
     async fn get_release_by_tag(
         &self,
         pkg: &Package<'_>,
-    ) -> Result<GithubResponse<Release>, ResponseError> {
+    ) -> Result<GithubResponse<Release>, AppError> {
         // dbg!(pkg);
 
         let req_url = format!(
@@ -153,12 +149,12 @@ impl GitHub {
             .context("fething a release")?;
 
         if resp.status().as_u16() == 404 {
-            return Err(ResponseError::NotFound);
+            return Err(AppError::NotFound);
         }
 
         resp.json::<GithubResponse<Release>>()
             .await
             .context("parsing release response body")
-            .map_err(|err| ResponseError::AnyHow(err))
+            .map_err(|err| AppError::AnyHow(err))
     }
 }
