@@ -7,13 +7,6 @@ pub const OS: &str = "windows";
 #[cfg(target_os = "macos")]
 pub const OS: &str = "macos";
 
-#[cfg(all(
-    not(target_os = "linux"),
-    not(target_os = "windows"),
-    not(target_os = "macos")
-))]
-pub const OS: &str = "unsupported";
-
 #[cfg(target_arch = "x86_64")]
 pub const ARCH: &str = "x86_64";
 

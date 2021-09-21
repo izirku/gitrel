@@ -10,37 +10,50 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct ConfigFile {
-    arch: Option<String>,
-    os: Option<String>,
-    bin_dir: Option<String>,
-    #[serde(default)]
-    strip: bool,
-    #[serde(default = "gh_pagination_per_page_default")]
-    pub gh_pagination_per_page: usize,
-    #[serde(default = "gh_pagination_max_default")]
-    gh_pagination_max: usize,
+    gitrel: Gitrel,
+    github_pagination: Pagination,
 }
 
-fn gh_pagination_per_page_default() -> usize {
+#[derive(Debug, Deserialize, Serialize)]
+struct Gitrel {
+    target_arch: Option<String>,
+    targes_os: Option<String>,
+    #[cfg(not(target_os = "windows"))]
+    #[serde(default)]
+    strip_execs: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Pagination {
+    #[serde(default = "gh_per_page_default")]
+    per_page: usize,
+    #[serde(default = "gh_max_pages_default")]
+    max_pages: usize,
+}
+
+fn gh_per_page_default() -> usize {
     20
 }
 
-fn gh_pagination_max_default() -> usize {
+fn gh_max_pages_default() -> usize {
     5
 }
 
 pub struct ConfigurationManager {
     pub token: Option<String>,
     pub strip: bool,
-    pub gh_pagination_per_page: usize,
-    pub gh_pagination_max: usize,
+    pub gh_per_page: usize,
+    pub gh_max_pages: usize,
     packages: PathBuf,
+    bin_dir: PathBuf,
 }
 
 impl ConfigurationManager {
     pub fn with_clap_matches(matches: &ArgMatches) -> Result<Self, AppError> {
-        let proj_dirs = ProjectDirs::from("com.github", "izirku", crate_name!()).unwrap();
+        let base_dirs = BaseDirs::new().unwrap();
+        let bin_dir = base_dirs.executable_dir().unwrap().to_path_buf();
 
+        let proj_dirs = ProjectDirs::from("com.github", "izirku", crate_name!()).unwrap();
         let cfg_dir = proj_dirs.config_dir();
         fs::create_dir_all(cfg_dir)
             .with_context(|| format!("unable to create config dir: {:?}", cfg_dir))?;
@@ -63,10 +76,11 @@ impl ConfigurationManager {
 
         Ok(ConfigurationManager {
             token,
-            strip: config.strip,
-            gh_pagination_per_page: config.gh_pagination_per_page,
-            gh_pagination_max: config.gh_pagination_max,
+            strip: config.gitrel.strip_execs,
+            gh_per_page: config.github_pagination.per_page,
+            gh_max_pages: config.github_pagination.max_pages,
             packages,
+            bin_dir,
         })
     }
 
@@ -94,21 +108,22 @@ impl ConfigurationManager {
 }
 
 fn get_or_create_cofig_file(path: &Path) -> Result<ConfigFile, AppError> {
-    let base_dirs = BaseDirs::new().unwrap();
-    let bin_dir = base_dirs.executable_dir().unwrap().to_string_lossy();
-
     match fs::read_to_string(&path) {
         Ok(config) => toml::from_str(&config)
             .with_context(|| format!("reading config: {:?}", path))
             .map_err(AppError::AnyHow),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             let config = ConfigFile {
-                os: Some(consts::OS.to_string()),
-                arch: Some(consts::ARCH.to_string()),
-                bin_dir: Some(bin_dir.to_string()),
-                strip: false,
-                gh_pagination_per_page: gh_pagination_per_page_default(),
-                gh_pagination_max: gh_pagination_max_default(),
+                gitrel: Gitrel {
+                    targes_os: Some(consts::OS.to_string()),
+                    target_arch: Some(consts::ARCH.to_string()),
+                    #[cfg(not(target_os = "windows"))]
+                    strip_execs: false,
+                },
+                github_pagination: Pagination {
+                    per_page: gh_per_page_default(),
+                    max_pages: gh_max_pages_default(),
+                },
             };
 
             fs::write(&path, toml::to_string(&config).context("parsing to toml")?)

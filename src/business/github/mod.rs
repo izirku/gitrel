@@ -9,7 +9,7 @@ use reqwest::{header, Client, Method};
 
 pub struct GitHub {
     client: Client,
-    per_page: u32,
+    per_page: usize,
     max_pages: usize,
 }
 
@@ -35,8 +35,8 @@ impl GitHub {
 
         Ok(Self {
             client,
-            per_page: 20,
-            max_pages: cm.gh_pagination_max,
+            per_page: cm.gh_per_page,
+            max_pages: cm.gh_max_pages,
         })
     }
 
