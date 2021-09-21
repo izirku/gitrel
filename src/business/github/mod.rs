@@ -3,7 +3,7 @@ mod release;
 mod response;
 
 pub use self::release::Release;
-pub use self::response::GithubResponse;
+use self::response::GithubResponse;
 use super::conf::{Package, PackageMatchKind};
 use crate::business::conf::ConfigurationManager;
 use crate::error::AppError;
@@ -84,8 +84,16 @@ impl GitHub {
             .await
             .context("parsing latest release response body")?;
 
-        if let GithubResponse::Ok(release) = resp {
-            Ok(release)
+        if let GithubResponse::Ok(mut release) = resp {
+            release.assets.retain(|asset| asset.is_match());
+            match release.assets.len() {
+                1 => Ok(release),
+                0 => Err(AppError::NotFound),
+                _ => {
+                    dbg!(&release);
+                    Err(AppError::MultipleResults)
+                }
+            }
         } else {
             Err(AppError::NotFound)
         }
@@ -119,7 +127,7 @@ impl GitHub {
             let releases: Vec<GithubResponse<Release>> =
                 resp.json().await.context("parsing response body")?;
 
-            for release in releases.into_iter().filter_map(|resp| {
+            for mut release in releases.into_iter().filter_map(|resp| {
                 if let GithubResponse::Ok(release) = resp {
                     Some(release)
                 } else {
@@ -127,7 +135,10 @@ impl GitHub {
                 }
             }) {
                 if release.matches_semver(pkg)? {
-                    break 'outer Ok(release);
+                    release.assets.retain(|asset| asset.is_match());
+                    if release.assets.len() == 1 {
+                        break 'outer Ok(release);
+                    }
                 }
             }
 

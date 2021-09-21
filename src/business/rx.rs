@@ -44,6 +44,27 @@ lazy_static! {
 }
 
 // =================================================================================
+// MATCH_ABI
+
+#[cfg(target_env = "gnu")]
+lazy_static! {
+    pub static ref MATCH_ABI: Regex =
+        Regex::new(r"(?i:(?:\b|_)(?:gnu)?(?:\b|_))").expect("error parsing regex");
+}
+
+#[cfg(target_env = "musl")]
+lazy_static! {
+    pub static ref MATCH_ABI: Regex =
+        Regex::new(r"(?i:(?:\b|_)musl(?:\b|_))").expect("error parsing regex");
+}
+
+#[cfg(target_env = "msvc")]
+lazy_static! {
+    pub static ref MATCH_ABI: Regex =
+        Regex::new(r"(?i:(?:\b|_)(?:msvc)?(?:\b|_))").expect("error parsing regex");
+}
+
+// =================================================================================
 // MATCH_ARCH
 
 #[cfg(target_arch = "aarch64")]

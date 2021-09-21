@@ -1,5 +1,5 @@
 use crate::business::conf::{ConfigurationManager, Package, PackageMap};
-use crate::business::github::{GitHub, GithubResponse};
+use crate::business::github::GitHub;
 use crate::error::AppError;
 use crate::Result;
 use clap::ArgMatches;
@@ -22,16 +22,14 @@ pub async fn process(cm: &ConfigurationManager, matches: &ArgMatches) -> Result<
     };
 
     let gh = GitHub::new(cm)?;
-    let resp = gh.get_matching_release(&pkg).await?;
-    if let GithubResponse::Ok(release) = resp {
-        pkg.published_at = Some(release.published_at);
-        pkg.tag = Some(release.tag_name);
+    let release = gh.get_matching_release(&pkg).await?;
+    pkg.published_at = Some(release.published_at);
+    pkg.tag = Some(release.tag_name);
 
-        println!("installing package:\n\n{:#?}", &pkg);
+    println!("installing package:\n\n{:#?}", &pkg);
 
-        let key = pkg.name.as_ref().unwrap().to_owned();
-        packages.insert(key, pkg);
-        cm.put_packages(&packages)?;
-    }
+    let key = pkg.name.as_ref().unwrap().to_owned();
+    packages.insert(key, pkg);
+    cm.put_packages(&packages)?;
     Ok(())
 }

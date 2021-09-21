@@ -2,6 +2,8 @@
 pub enum AppError {
     #[error("requested resource not found")]
     NotFound,
+    #[error("multiple resources found")]
+    MultipleResults,
     #[error("unknown method of mathing requested release")]
     UnknownMatchKind,
     #[error(transparent)]

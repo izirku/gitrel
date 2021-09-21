@@ -13,4 +13,3 @@ pub struct ErrorResponse {
     message: String,
     // documentation_url: String,
 }
-

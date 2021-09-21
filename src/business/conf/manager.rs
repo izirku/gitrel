@@ -1,6 +1,5 @@
 use crate::business::conf::package::PackageMap;
 use crate::error::AppError;
-use crate::foundation::consts;
 use anyhow::Context;
 use clap::{crate_name, ArgMatches};
 use directories::{BaseDirs, ProjectDirs};
@@ -16,8 +15,10 @@ struct ConfigFile {
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Gitrel {
-    target_arch: Option<String>,
-    targes_os: Option<String>,
+    // maybe allow "cross-targeting" later
+    // targes_os: Option<String>,
+    // target_arch: Option<String>,
+    // target_env: Option<String>,
     #[cfg(not(target_os = "windows"))]
     #[serde(default)]
     strip_execs: bool,
@@ -44,8 +45,8 @@ pub struct ConfigurationManager {
     pub strip: bool,
     pub gh_per_page: usize,
     pub gh_max_pages: usize,
+    pub bin_dir: PathBuf,
     packages: PathBuf,
-    bin_dir: PathBuf,
 }
 
 impl ConfigurationManager {
@@ -115,8 +116,8 @@ fn get_or_create_cofig_file(path: &Path) -> Result<ConfigFile, AppError> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             let config = ConfigFile {
                 gitrel: Gitrel {
-                    targes_os: Some(consts::OS.to_string()),
-                    target_arch: Some(consts::ARCH.to_string()),
+                    // targes_os: Some(consts::OS.to_string()),
+                    // target_arch: Some(consts::ARCH.to_string()),
                     #[cfg(not(target_os = "windows"))]
                     strip_execs: false,
                 },

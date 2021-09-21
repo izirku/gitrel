@@ -26,6 +26,8 @@ pub struct Asset {
 
 impl Asset {
     pub fn is_match(&self) -> bool {
-        rx::MATCH_OS.is_match(&self.name) && rx::MATCH_ARCH.is_match(&self.name)
+        rx::MATCH_OS.is_match(&self.name)
+            && rx::MATCH_ARCH.is_match(&self.name)
+            && rx::MATCH_ABI.is_match(&self.name)
     }
 }
