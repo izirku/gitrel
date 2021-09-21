@@ -13,6 +13,7 @@ pub async fn process(cm: &ConfigurationManager, matches: &ArgMatches) -> Result<
         pkg.published_at = Some(release.published_at);
         pkg.tag = Some(release.tag_name);
         println!("found:\n\n{:#?}", &pkg);
+        println!("assets:\n\n{:#?}", &release.assets);
     }
 
     Ok(())

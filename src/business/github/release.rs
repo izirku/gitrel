@@ -1,3 +1,4 @@
+use super::asset::Asset;
 use crate::business::conf::Package;
 use crate::business::rx;
 use anyhow::{Context, Result};
@@ -46,7 +47,7 @@ pub struct Release {
 
 impl Release {
     /// Given a `package` spec, see if we have a SemVer match.
-    pub fn matches(&self, package: &Package) -> Result<bool> {
+    pub fn matches_semver(&self, package: &Package) -> Result<bool> {
         if let Some(extacted_remote_semver) = rx::SEMVER.find(&self.tag_name) {
             let ver_remote = semver::Version::parse(extacted_remote_semver.as_str())
                 .context("parsing tag as semver")?;
@@ -57,35 +58,16 @@ impl Release {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[non_exhaustive]
-pub struct Asset {
-    // pub url: Url,
-    pub browser_download_url: Url,
-    pub id: u64,
-    pub node_id: String,
-    pub name: String,
-    pub label: Option<String>,
-    pub state: String,
-    pub content_type: String,
-    pub size: i64,
-    pub download_count: i64,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    // pub uploader: User,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[non_exhaustive]
-pub struct Tag {
-    pub name: String,
-    // pub commit: CommitObject,
-    // pub zipball_url: Url,
-    // pub tarball_url: Url,
-    pub node_id: String,
-}
+// #[derive(Debug, Clone, PartialEq, Deserialize)]
+// #[serde(rename_all = "snake_case")]
+// #[non_exhaustive]
+// pub struct Tag {
+//     pub name: String,
+//     // pub commit: CommitObject,
+//     // pub zipball_url: Url,
+//     // pub tarball_url: Url,
+//     pub node_id: String,
+// }
 
 // #[derive(Debug, Clone, PartialEq, Deserialize)]
 // #[serde(rename_all = "snake_case")]
