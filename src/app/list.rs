@@ -1,12 +1,11 @@
-use std::cmp;
-
 use crate::business::conf::ConfigurationManager;
 use crate::error::AppError;
 use crate::foundation::util::svec2_col_maj_max_lens_unchecked;
 use crate::Result;
 use colored::*;
+use std::cmp;
 
-/// List requested packages
+/// List installed packages
 pub fn process(cm: &ConfigurationManager) -> Result<()> {
     let packages = match cm.get_packages() {
         Ok(packages) => packages,
@@ -35,7 +34,8 @@ pub fn process(cm: &ConfigurationManager) -> Result<()> {
         w_ver = cmp::max(3, max_lens[1]),
     );
 
-    // we have to add 4 b/c of spaces separating columns and to factor in the 2 spaces square brackets take up
+    // we have to add 4, b/c of the spaces separating columns,
+    // and to factor in the 2 spaces that square brackets take up
     println!(
         "{}",
         "-".to_string()
