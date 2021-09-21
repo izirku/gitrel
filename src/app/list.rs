@@ -1,7 +1,10 @@
+use std::cmp;
+
 use crate::business::conf::ConfigurationManager;
 use crate::error::AppError;
 use crate::foundation::util::svec2_col_maj_max_lens_unchecked;
 use crate::Result;
+use colored::*;
 
 /// List requested packages
 pub fn process(cm: &ConfigurationManager) -> Result<()> {
@@ -17,29 +20,40 @@ pub fn process(cm: &ConfigurationManager) -> Result<()> {
     let mut cols = Vec::with_capacity(packages.len());
 
     for (name, pkg_spec) in packages.into_iter() {
-        let repo = format!("[https://github.com/{}]", &pkg_spec.repo);
+        let repo = format!("https://github.com/{}", &pkg_spec.repo);
         cols.push(vec![name, pkg_spec.requested, repo]);
     }
 
     let max_lens = svec2_col_maj_max_lens_unchecked(&cols);
 
     println!(
-        "{:<w_name$} {:<w_ver$} REPO\n",
-        "BIN",
-        "TAG",
-        w_name = max_lens[0],
-        w_ver = max_lens[1],
+        "{:<w_name$} {:<w_ver$} {}",
+        "Bin".green(),
+        "Tag".red(),
+        "Repo".blue(),
+        w_name = cmp::max(3, max_lens[0]),
+        w_ver = cmp::max(3, max_lens[1]),
+    );
+
+    // we have to add 4 b/c of spaces separating columns and to factor in the 2 spaces square brackets take up
+    println!(
+        "{}",
+        "-".to_string()
+            .repeat(cmp::max(3, max_lens[0]) + cmp::max(3, max_lens[1]) + max_lens[2] + 4)
+            .yellow()
     );
 
     for row in &cols {
         if let [name, ver, repo] = &row[..] {
             println!(
-                "{:<w_name$} {:<w_ver$} {}",
-                name,
-                ver,
-                repo,
-                w_name = max_lens[0],
-                w_ver = max_lens[1],
+                "{:<w_name$} {:>w_ver$} {}{}{}",
+                name.green(),
+                ver.red(),
+                "[".cyan(),
+                repo.blue(),
+                "]".cyan(),
+                w_name = cmp::max(3, max_lens[0]),
+                w_ver = cmp::max(3, max_lens[1]),
             );
         }
     }
