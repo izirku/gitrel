@@ -4,13 +4,24 @@ use std::collections::BTreeMap;
 
 pub type PackageMap = BTreeMap<String, Package>;
 
+/// Is a representation of a \[maybe installed\] package. Also serves as
+/// an interchange format between [ConfigurationManager](crate::business::conf::ConfigurationManager),
+/// [GitHub](crate::business::github::GitHub),
+/// and [Installer](crate::business::installer::Installer).
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Package {
+    /// lower cased *repository name*
     #[serde(skip)]
     pub name: Option<String>,
+    /// is `repo_user/repo_name`
     pub repo: String,
+    /// *release tag* of an installed or a *matched* release 
     pub tag: Option<String>,
     pub published_at: Option<DateTime<Utc>>,
+    /// a requested *version*, can be one of:
+    /// - `"*"` - latest release (default)
+    /// - `"<plain string>"` - a named release (can be a pre-release)
+    /// - `"<SEMVER string>"` - a *semver* to match against *release tag*
     pub requested: String,
 }
 
