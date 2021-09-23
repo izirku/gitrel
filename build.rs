@@ -61,6 +61,7 @@ lazy_static! {
         // also good to exclude
         "source",
         "src",
+        "vsix",
         // ===============================================
         // OS
         "aix",

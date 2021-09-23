@@ -1,8 +1,8 @@
 mod asset;
-mod match_asset;
 mod release;
 mod response;
 
+pub use self::asset::Asset;
 pub use self::release::Release;
 use self::response::GithubResponse;
 use super::conf::{Package, PackageMatchKind};
