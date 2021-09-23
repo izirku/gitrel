@@ -1,48 +1,53 @@
 use lazy_static::lazy_static;
 use std::collections::HashSet;
+use std::env;
+use std::fmt::Write;
+use std::fs;
+use std::path::Path;
 
 fn main() {
-    // #[cfg(not(any(
-    //     target_os = "linux",
-    //     target_os = "openbsd",
-    //     target_os = "freebsd",
-    //     target_os = "macos",
-    //     target_os = "windows",
-    // )))]
-    // {
-    //     println!("trying to build on an unsupported target");
-    //     std::process::exit(1);
-    // }
-
     let tgt_os = platforms::target::TARGET_OS.as_str();
     let tgt_arch = platforms::target::TARGET_ARCH.as_str();
     // let curr_abi = platforms::target::TARGET_ENV.unwrap().as_str();
 
-    let mut exclude_os: HashSet<&'static str> = ALL_OS.iter().copied().collect();
-    exclude_os.remove(tgt_os);
+    let mut exclude_set: HashSet<&'static str> = ALL_EXCLUDES.iter().copied().collect();
+
+    exclude_set.remove(tgt_os);
     if tgt_os == "macos" {
-        exclude_os.remove("apple");
-        exclude_os.remove("darwin");
+        exclude_set.remove("apple");
+        exclude_set.remove("darwin");
     }
 
-    let mut exclude_arch: HashSet<&'static str> = ALL_ARCH.iter().copied().collect();
-    exclude_arch.remove(tgt_arch);
+    exclude_set.remove(tgt_arch);
     if tgt_arch == "x86_64" {
-        exclude_arch.remove("amd64");
+        exclude_set.remove("amd64");
     }
     if tgt_arch == "x86" {
-        exclude_arch.remove("386");
-        exclude_arch.remove("i586");
-        exclude_arch.remove("i686");
+        exclude_set.remove("386");
+        exclude_set.remove("i586");
+        exclude_set.remove("i686");
     }
 
-    let mut exclude_abi: HashSet<&'static str> = ALL_ABI.iter().copied().collect();
     if let Some(abi) = platforms::target::TARGET_ENV {
-        exclude_abi.remove(abi.as_str());
+        exclude_set.remove(abi.as_str());
     }
 
     // (x86_64|[a-zA-Z0-9]+)
     // (x86_64|x86\-64|[a-zA-Z0-9]+)
+
+    let out_dir = env::var_os("OUT_DIR").unwrap();
+    let dest_path = Path::new(&out_dir).join("generated.rs");
+
+    let mut msg = String::with_capacity(exclude_set.len() * 12);
+    msg.write_str("lazy_static! { static ref EXCLUDE_SET: HashSet<&'static str> = vec![")
+        .unwrap();
+    for term in exclude_set.iter().copied() {
+        msg.write_str(format!("\"{}\",", term).as_str()).unwrap();
+    }
+    msg.write_str("].iter().copied().collect();}\n").unwrap();
+
+    fs::write(&dest_path, msg).unwrap();
+    println!("cargo:rerun-if-changed=build.rs");
 }
 
 // ========================================================================
@@ -51,7 +56,13 @@ fn main() {
 //   2. rustup target list
 
 lazy_static! {
-    pub static ref ALL_OS: Vec<&'static str> = vec![
+    pub static ref ALL_EXCLUDES: Vec<&'static str> = vec![
+        // ===============================================
+        // also good to exclude
+        "source",
+        "src",
+        // ===============================================
+        // OS
         "aix",
         "android",
         "apple",
@@ -74,8 +85,8 @@ lazy_static! {
         "sun",
         "windows",
         "zos",
-    ];
-    pub static ref ALL_ARCH: Vec<&'static str> = vec![
+        // ===============================================
+        // ARCH
         "386",
         "aarch64",
         "amd64",
@@ -128,8 +139,8 @@ lazy_static! {
         "wasm",
         "wasm32",
         "x86_64",
-    ];
-    pub static ref ALL_ABI: Vec<&'static str> = vec![
+        // ===============================================
+        // ABI
         "androideabi",
         "eabi",
         "eabihf",
