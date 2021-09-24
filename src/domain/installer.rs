@@ -1,4 +1,4 @@
-use super::conf::Package;
+use super::package::Package;
 use crate::Result;
 use std::path::Path;
 // #[cfg(target_family = "unix")]

@@ -1,6 +1,6 @@
-use crate::domain::conf::{ConfigurationManager, Package};
+use crate::domain::conf::ConfigurationManager;
 use crate::domain::github::GitHub;
-// use crate::business::installer::Installer;
+use crate::domain::package::Package;
 use crate::Result;
 use clap::ArgMatches;
 
@@ -17,12 +17,6 @@ pub async fn info(matches: &ArgMatches) -> Result<()> {
 
     if gh.find_match(&mut pkg).await? {
         println!("found:\n\n{:#?}", &pkg);
-
-        // let installer = Installer::new(cm)?;
-        // installer
-        //     .download(&pkg.repo, &pkg.asset_name.unwrap())
-        //     .await?;
-        dbg!(&pkg);
     }
 
     Ok(())

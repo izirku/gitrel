@@ -5,8 +5,8 @@ mod response;
 // use self::asset::Asset;
 use self::release::Release;
 use self::response::GithubResponse;
-use super::conf::{Package, PackageMatchKind};
-use super::matches;
+use super::util;
+use super::package::{Package, PackageMatchKind};
 use crate::error::AppError;
 use anyhow::Context;
 use reqwest::{header, Client, Method};
@@ -125,7 +125,7 @@ impl<'a> GitHub<'a> {
         if let GithubResponse::Ok(mut release) = resp {
             release
                 .assets
-                .retain(|asset| matches::os_arch_abi(&asset.name));
+                .retain(|asset| util::matches_target(&asset.name));
             match release.assets.len() {
                 1 => Ok(release),
                 0 => Err(AppError::NotFound),
@@ -175,10 +175,10 @@ impl<'a> GitHub<'a> {
                     None
                 }
             }) {
-                if matches::semver(&release.tag_name, &pkg.requested) {
+                if util::matches_semver(&release.tag_name, &pkg.requested) {
                     release
                         .assets
-                        .retain(|asset| matches::os_arch_abi(&asset.name));
+                        .retain(|asset| util::matches_target(&asset.name));
                     if release.assets.len() == 1 {
                         break 'outer Ok(release);
                     }

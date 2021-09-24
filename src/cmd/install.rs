@@ -1,5 +1,6 @@
-use crate::domain::conf::{ConfigurationManager, Package, PackageMap};
+use crate::domain::conf::ConfigurationManager;
 use crate::domain::github::GitHub;
+use crate::domain::package::{Package, PackageMap};
 use crate::error::AppError;
 use crate::Result;
 use clap::ArgMatches;

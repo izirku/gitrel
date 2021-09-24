@@ -11,7 +11,7 @@ lazy_static! {
         Regex::new(r"(x86_64|x86\-64|[a-zA-Z0-9]+)").expect("error parsing regex");
 }
 
-pub fn os_arch_abi(str: &str) -> bool {
+pub fn matches_target(str: &str) -> bool {
     for term in TERMS.find_iter(&str.to_lowercase()) {
         if EXCLUDE_SET.contains(term.as_str()) {
             return false;
@@ -22,7 +22,8 @@ pub fn os_arch_abi(str: &str) -> bool {
     //         && rx::MATCH_ARCH.is_match(&self.name)
     //         && rx::MATCH_ABI.is_match(&self.name)
 }
-pub fn semver(tag_name: &str, semver: &str) -> bool {
+
+pub fn matches_semver(tag_name: &str, semver: &str) -> bool {
     if let Some(extacted_remote_semver) = SEMVER.find(tag_name) {
         let ver_remote = semver::Version::parse(extacted_remote_semver.as_str());
         if let Ok(ver_remote) = ver_remote {
@@ -32,3 +33,21 @@ pub fn semver(tag_name: &str, semver: &str) -> bool {
     }
     false
 }
+
+// this is imlemented as a Package method right now... should we move it out to here?
+// #[derive(Debug)]
+// pub enum MatchKind {
+//     Exact,
+//     Latest,
+//     SemVer,
+// }
+
+// pub fn match_kind(str: &str) -> MatchKind {
+//     if str == "*" {
+//         MatchKind::Latest
+//     } else if semver::VersionReq::parse(str).is_ok() {
+//         MatchKind::SemVer
+//     } else {
+//         MatchKind::Exact
+//     }
+// }
