@@ -1,4 +1,4 @@
-use crate::business::conf::package::PackageMap;
+use super::package::PackageMap;
 use crate::error::AppError;
 use anyhow::Context;
 use clap::{crate_name, ArgMatches};
@@ -46,6 +46,7 @@ pub struct ConfigurationManager {
     pub gh_per_page: usize,
     pub gh_max_pages: usize,
     pub bin_dir: PathBuf,
+    // pub temp_dir: TempDir, // could use interior mutability to delay, but adds Arc<Mutex<Option<T>>> complexity
     packages: PathBuf,
 }
 

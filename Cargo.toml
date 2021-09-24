@@ -35,7 +35,6 @@ zip = "0.5.13"
 zip-extensions = "0.6.1"
 tar = "0.4.37"
 flate2 = "1.0.22"
-twox-hash = "1.6.1"
 
 [build-dependencies]
 platforms = "1.1.0"

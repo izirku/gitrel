@@ -1,12 +1,14 @@
-use crate::business::conf::ConfigurationManager;
+use crate::domain::conf::ConfigurationManager;
 use crate::error::AppError;
 use crate::foundation::util::svec2_col_maj_max_lens_unchecked;
 use crate::Result;
+use clap::ArgMatches;
 use colored::*;
 use std::cmp;
 
 /// List installed packages
-pub fn process(cm: &ConfigurationManager) -> Result<()> {
+pub fn list(matches: &ArgMatches) -> Result<()> {
+    let cm = ConfigurationManager::with_clap_matches(matches)?;
     let packages = match cm.get_packages() {
         Ok(packages) => packages,
         Err(AppError::NotFound) => {
