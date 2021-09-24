@@ -1,7 +1,4 @@
 use super::asset::Asset;
-use crate::domain::conf::Package;
-use crate::domain::rx;
-use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use url::Url;
@@ -43,19 +40,6 @@ pub struct Release {
     // pub published_at: Option<DateTime<Utc>>,
     // pub author: crate::models::User,
     pub assets: Vec<Asset>,
-}
-
-impl Release {
-    /// Given a `package` spec, see if we have a SemVer match.
-    pub fn matches_semver(&self, package: &Package) -> Result<bool> {
-        if let Some(extacted_remote_semver) = rx::SEMVER.find(&self.tag_name) {
-            let ver_remote = semver::Version::parse(extacted_remote_semver.as_str())
-                .context("parsing tag as semver")?;
-            let ver_req = semver::VersionReq::parse(&package.requested).unwrap();
-            return Ok(ver_req.matches(&ver_remote));
-        }
-        Ok(false)
-    }
 }
 
 // #[derive(Debug, Clone, PartialEq, Deserialize)]
