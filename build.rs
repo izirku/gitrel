@@ -17,6 +17,9 @@ fn main() {
         exclude_set.remove("apple");
         exclude_set.remove("darwin");
     }
+    if tgt_os == "windows" {
+        exclude_set.remove("win64");
+    }
 
     exclude_set.remove(tgt_arch);
     if tgt_arch == "x86_64" {
@@ -62,6 +65,7 @@ lazy_static! {
         "source",
         "src",
         "vsix",
+        "win64",
         // ===============================================
         // OS
         "aix",
