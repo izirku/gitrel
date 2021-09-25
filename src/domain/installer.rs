@@ -1,19 +1,19 @@
 use super::package::Package;
-use super::util::TarKind;
-use crate::domain::util::{self, ArchiveKind};
+use super::util::{self, ArchiveKind, TarKind};
 use crate::error::AppError;
 use crate::Result;
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use std::ffi::OsStr;
-#[cfg(target_family = "unix")]
-use std::fs::{set_permissions, Permissions};
 use std::fs::{File, OpenOptions};
-use std::io::{BufRead, BufReader, BufWriter, Write};
-#[cfg(target_family = "unix")]
-use std::os::unix::fs::PermissionsExt;
+use std::io::BufReader;
 use std::path::Path;
+#[cfg(target_family = "unix")]
+use std::{
+    fs::{set_permissions, Permissions},
+    os::unix::fs::PermissionsExt,
+};
 use xz::read::XzDecoder;
 use zip::ZipArchive;
 // use tokio::fs::File;
@@ -28,7 +28,6 @@ pub async fn install(pkg: &Package, bin_dir: &Path) -> Result<(), AppError> {
         }
     }
 
-    // let archive_path = pkg.asset_path.and_then(PathBuf::as_path).as_ref().unwrap();
     let archive_path = pkg.asset_path.as_ref().unwrap().as_path();
     let dest = bin_dir.join(file_name);
     let dest = dest.as_path();
@@ -48,7 +47,7 @@ pub async fn install(pkg: &Package, bin_dir: &Path) -> Result<(), AppError> {
                 .create(true)
                 .open(dest)
                 .context("opening destination")?;
-            // buffered_reader_writer(&mut reader, &mut dest_file)
+
             match std::io::copy(&mut reader, &mut dest_file) {
                 Ok(n) => {
                     println!("installed size: {}", n);
@@ -95,7 +94,6 @@ fn extract_gzip(archive: &Path, dest: &Path) -> Result<(), AppError> {
             anyhow::Error::new(e).context("decompressing a gzip file"),
         )),
     }
-    // buffered_reader_writer(&mut reader, &mut dest_file)
 }
 
 fn extract_bzip(archive: &Path, dest: &Path) -> Result<(), AppError> {
@@ -116,7 +114,6 @@ fn extract_bzip(archive: &Path, dest: &Path) -> Result<(), AppError> {
             anyhow::Error::new(e).context("decompressing a bzip2 file"),
         )),
     }
-    // buffered_reader_writer(&mut reader, &mut dest_file)
 }
 
 fn extract_xz(archive: &Path, dest: &Path) -> Result<(), AppError> {
@@ -137,7 +134,6 @@ fn extract_xz(archive: &Path, dest: &Path) -> Result<(), AppError> {
             anyhow::Error::new(e).context("decompressing an xz file"),
         )),
     }
-    // buffered_reader_writer(&mut reader, &mut dest_file)
 }
 
 fn extract_zip(archive: &Path, file_name: &str, dest: &Path) -> Result<(), AppError> {
@@ -157,7 +153,16 @@ fn extract_zip(archive: &Path, file_name: &str, dest: &Path) -> Result<(), AppEr
                             .open(dest)
                             .context("opening destination")?;
                         let mut reader = BufReader::new(zfile);
-                        return buffered_reader_writer(&mut reader, &mut dest_file);
+
+                        return match std::io::copy(&mut reader, &mut dest_file) {
+                            Ok(n) => {
+                                println!("decompressed bytes: {}", n);
+                                Ok(())
+                            }
+                            Err(e) => Err(AppError::AnyHow(
+                                anyhow::Error::new(e).context("decompressing a zip file"),
+                            )),
+                        };
                     }
                 }
             }
@@ -205,69 +210,3 @@ fn extract_tar(
 
     Err(AppError::NotFound)
 }
-
-fn buffered_reader_writer<R: BufRead, W: Write>(
-    reader: &mut R,
-    writer: &mut W,
-) -> Result<(), AppError> {
-    let mut writer = BufWriter::new(writer);
-    loop {
-        let buffer = reader
-            .fill_buf()
-            .context("failed to fill the read buffer")?;
-
-        if buffer.is_empty() {
-            break;
-        }
-
-        match writer.write(buffer) {
-            Ok(0) => {
-                return Err(AppError::AnyHow(anyhow!(
-                    "unable to write to dest buffer anymore"
-                )))
-            }
-            Ok(n) => {
-                reader.consume(n);
-                continue;
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-            Err(e) => {
-                return Err(AppError::AnyHow(
-                    anyhow::Error::new(e).context("writing to the dest buffer"),
-                ))
-            }
-        }
-    }
-    Ok(())
-}
-
-//                         let mut writer = BufWriter::new(dest_file);
-//                         loop {
-//                             let buffer = reader
-//                                 .fill_buf()
-//                                 .context("failed to fill the read buffer")?;
-
-//                             if buffer.len() == 0 {
-//                                 break;
-//                             }
-
-//                             match writer.write(buffer) {
-//                                 Ok(0) => {
-//                                     return Err(AppError::AnyHow(anyhow!(
-//                                         "unable to write to dest buffer anymore"
-//                                     )))
-//                                 }
-//                                 Ok(n) => {
-//                                     reader.consume(n);
-//                                     continue;
-//                                 }
-//                                 Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-//                                 Err(e) => {
-//                                     return Err(AppError::AnyHow(
-//                                         anyhow::Error::new(e).context("writing to the dest buffer"),
-//                                     ))
-//                                 }
-//                             }
-//                         }
-//                         // zip.extract_file(i, &dest, true).context("extracting a file from a zip")?;
-//                         return Ok(());
