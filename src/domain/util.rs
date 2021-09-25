@@ -34,6 +34,51 @@ pub fn matches_semver(tag_name: &str, semver: &str) -> bool {
     false
 }
 
+#[derive(Debug)]
+pub enum ArchiveKind {
+    BZip,
+    GZip,
+    XZ,
+    Zip,
+    Tar(TarKind),
+    Uncompressed,
+    Unsupported,
+}
+
+#[derive(Debug)]
+pub enum TarKind {
+    Uncompressed,
+    BZip,
+    GZip,
+    XZ,
+}
+
+pub fn archive_kind(str: &str) -> ArchiveKind {
+    if str.rfind('.').is_none() {
+        return ArchiveKind::Uncompressed;
+    }
+
+    if str.ends_with(".zip") {
+        ArchiveKind::Zip
+    } else if str.ends_with(".gz") || str.ends_with(".gzip") || str.ends_with(".gnuzip") {
+        ArchiveKind::GZip
+    } else if str.ends_with(".bz2") || str.ends_with(".bzip2") {
+        ArchiveKind::BZip
+    } else if str.ends_with(".tar.gz") || str.ends_with(".tgz") {
+        ArchiveKind::Tar(TarKind::GZip)
+    } else if str.ends_with(".tar.bz2") || str.ends_with(".tbz") {
+        ArchiveKind::Tar(TarKind::BZip)
+    } else if str.ends_with(".tar.xz") || str.ends_with(".txz") {
+        ArchiveKind::Tar(TarKind::XZ)
+    } else if str.ends_with(".tar") {
+        ArchiveKind::Tar(TarKind::Uncompressed)
+    } else if str.ends_with(".xz") {
+        ArchiveKind::XZ
+    } else {
+        ArchiveKind::Unsupported
+    }
+}
+
 // this is imlemented as a Package method right now... should we move it out to here?
 // #[derive(Debug)]
 // pub enum MatchKind {

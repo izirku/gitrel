@@ -32,9 +32,9 @@ tempfile = "3.2.0"
 bzip2 = "0.4.3"
 xz = "0.1.0"
 zip = "0.5.13"
-zip-extensions = "0.6.1"
 tar = "0.4.37"
 flate2 = "1.0.22"
+cfg-if = "1.0.0"
 
 [build-dependencies]
 platforms = "1.1.0"

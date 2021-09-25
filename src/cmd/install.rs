@@ -1,5 +1,6 @@
 use crate::domain::conf::ConfigurationManager;
 use crate::domain::github::GitHub;
+use crate::domain::installer;
 use crate::domain::package::{Package, PackageMap};
 use crate::error::AppError;
 use crate::Result;
@@ -36,8 +37,9 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
         // installer
         //     .download(&pkg.repo, &pkg.asset_name.unwrap())
         //     .await?;
+        installer::install(&pkg, &cm.bin_dir).await?;
         let key = pkg.name.as_ref().unwrap().to_owned();
-        packages.insert(key, pkg);
+        // packages.insert(key, pkg);
         cm.put_packages(&packages)?;
     }
     Ok(())
