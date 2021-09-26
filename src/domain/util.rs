@@ -34,7 +34,7 @@ pub fn matches_semver(tag_name: &str, semver: &str) -> bool {
     false
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ArchiveKind {
     BZip,
     GZip,
@@ -45,7 +45,7 @@ pub enum ArchiveKind {
     Unsupported,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TarKind {
     Uncompressed,
     BZip,

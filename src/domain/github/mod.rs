@@ -94,11 +94,16 @@ impl<'a> GitHub<'a> {
             Ok(mut release) => {
                 // dbg!(&release);
 
+                // Under normal circumstances, i.e, when not forcing a re-install,
+                // or not ensuring existance, if tag of the release is the same,
+                // say "nightly", we want to compare its `published_at` date to
+                // what we have on record. If it's not the same as ours, skip it.
+                // NB: Strict comparison for equality should be faster and enough.
                 if !force
-                    && pkg.tag.is_some()
-                    && pkg.published_at.is_some()
+                    && pkg.tag.is_some() // newly requested package will have `None`
+                    && pkg.published_at.is_some() // newly requested package will have `None`
                     && &release.tag_name == pkg.tag.as_ref().unwrap()
-                    && release.published_at <= pkg.published_at.unwrap()
+                    && release.published_at == pkg.published_at.unwrap()
                 {
                     return Ok(false);
                 }
@@ -136,9 +141,10 @@ impl<'a> GitHub<'a> {
             .context("parsing latest release response body")?;
 
         if let GithubResponse::Ok(mut release) = resp {
-            release
-                .assets
-                .retain(|asset| util::matches_target(&asset.name));
+            release.assets.retain(|asset| {
+                util::matches_target(&asset.name)
+                    && util::archive_kind(&asset.name) != util::ArchiveKind::Unsupported
+            });
             match release.assets.len() {
                 1 => Ok(release),
                 0 => Err(AppError::NotFound),
@@ -189,9 +195,10 @@ impl<'a> GitHub<'a> {
                 }
             }) {
                 if util::matches_semver(&release.tag_name, &pkg.requested) {
-                    release
-                        .assets
-                        .retain(|asset| util::matches_target(&asset.name));
+                    release.assets.retain(|asset| {
+                        util::matches_target(&asset.name)
+                            && util::archive_kind(&asset.name) != util::ArchiveKind::Unsupported
+                    });
                     if release.assets.len() == 1 {
                         break 'outer Ok(release);
                     }
