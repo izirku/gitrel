@@ -60,6 +60,12 @@ subcommands:
             long: strip
   - uninstall:
       about: uninstall binaries
+      alias: remove
+      args:
+        - name:
+            about: binary name(s)
+            takes_value: true
+            multiple_values: true
   - list:
       about: list installed binaries
   - info:
