@@ -140,33 +140,40 @@ fn extract_zip(archive: &Path, file_name: &str, dest: &Path) -> Result<(), AppEr
     let mut zip = ZipArchive::new(File::open(archive).context("opening a zip file")?)
         .context("reading a zip file")?;
 
+    // first we have to find an index of what we want, without decompression
+    let mut idx_to_extract = None;
     for i in 0..zip.len() {
         let zfile = zip.by_index_raw(i).context("indexing into a zip file")?;
 
-        if let Some(zpath) = zfile.enclosed_name() {
-            if let Some(zname) = zpath.file_name() {
-                if let Some(zname) = zname.to_str() {
-                    if zname == file_name {
-                        let mut dest_file = OpenOptions::new()
-                            .write(true)
-                            .create(true)
-                            .open(dest)
-                            .context("opening destination")?;
-                        let mut reader = BufReader::new(zfile);
-
-                        return match std::io::copy(&mut reader, &mut dest_file) {
-                            Ok(n) => {
-                                println!("decompressed bytes: {}", n);
-                                Ok(())
-                            }
-                            Err(e) => Err(AppError::AnyHow(
-                                anyhow::Error::new(e).context("decompressing a zip file"),
-                            )),
-                        };
-                    }
-                }
+        if let Some(zname) = zfile
+            .enclosed_name()
+            .and_then(Path::file_name)
+            .and_then(OsStr::to_str)
+        {
+            if zname == file_name {
+                idx_to_extract = Some(i);
             }
         }
+    }
+
+    // if we found something to decompress, roll with it
+    if let Some(i) = idx_to_extract {
+        let mut reader = BufReader::new(zip.by_index(i).context("indexing into a zip file")?);
+        let mut dest_file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(dest)
+            .context("opening destination")?;
+
+        return match std::io::copy(&mut reader, &mut dest_file) {
+            Ok(n) => {
+                println!("decompressed bytes: {}", n);
+                Ok(())
+            }
+            Err(e) => Err(AppError::AnyHow(
+                anyhow::Error::new(e).context("decompressing a zip file"),
+            )),
+        };
     }
     Err(AppError::NotFound)
 }
