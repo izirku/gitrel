@@ -22,40 +22,55 @@ pub fn list(matches: &ArgMatches) -> Result<()> {
 
     for (name, pkg_spec) in packages.into_iter() {
         let repo = format!("https://github.com/{}", &pkg_spec.repo);
-        cols.push(vec![name, pkg_spec.requested, repo]);
+        cols.push(vec![
+            name,
+            pkg_spec.requested,
+            pkg_spec.tag.unwrap_or_else(|| "".to_string()),
+            repo,
+        ]);
     }
 
     let max_lens = svec2_col_maj_max_lens_unchecked(&cols);
 
     println!(
-        "{:<w_name$} {:<w_ver$} {}",
+        "{:<w_name$} {:<w_req$} {:<w_inst$} {}",
         "Bin".green(),
-        "Tag".red(),
+        "Requested".red(),
+        "Installed".cyan(),
         "Repo".blue(),
         w_name = cmp::max(3, max_lens[0]),
-        w_ver = cmp::max(3, max_lens[1]),
+        w_req = cmp::max(9, max_lens[1]),
+        w_inst = cmp::max(9, max_lens[2]),
     );
 
-    // we have to add 4, b/c of the spaces separating columns,
+    // we have to add 5, b/c of the spaces separating columns,
     // and to factor in the 2 spaces that square brackets take up
     println!(
         "{}",
         "-".to_string()
-            .repeat(cmp::max(3, max_lens[0]) + cmp::max(3, max_lens[1]) + max_lens[2] + 4)
+            .repeat(
+                cmp::max(3, max_lens[0])
+                    + cmp::max(9, max_lens[1])
+                    + cmp::max(9, max_lens[2])
+                    + max_lens[3]
+                    + 5
+            )
             .yellow()
     );
 
     for row in &cols {
-        if let [name, ver, repo] = &row[..] {
+        if let [name, requested, installed, repo] = &row[..] {
             println!(
-                "{:<w_name$} {:>w_ver$} {}{}{}",
+                "{:<w_name$} {:>w_req$} {:>w_inst$} {}{}{}",
                 name.green(),
-                ver.red(),
+                requested.red(),
+                installed.cyan(),
                 "[".cyan(),
                 repo.blue(),
                 "]".cyan(),
                 w_name = cmp::max(3, max_lens[0]),
-                w_ver = cmp::max(3, max_lens[1]),
+                w_req = cmp::max(9, max_lens[1]),
+                w_inst = cmp::max(9, max_lens[2]),
             );
         }
     }

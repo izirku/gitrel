@@ -79,6 +79,31 @@ pub fn archive_kind(str: &str) -> ArchiveKind {
     }
 }
 
+/// Returns a triple (repo, repo_name, requested)
+pub fn parse_gh_repo_spec(repo_spec: &str) -> (String, String, String) {
+    let (repo, tag) = if repo_spec.contains('@') {
+        let (repo, tag) = repo_spec.split_at(repo_spec.find('@').unwrap());
+        (repo, tag.trim_start_matches('@'))
+    } else {
+        (repo_spec, "*")
+    };
+
+    let (repo, name) = if repo.contains('/') {
+        (
+            repo.to_owned(),
+            repo.split_at(repo.find('/').unwrap())
+                .1
+                .get(1..)
+                .unwrap()
+                .to_lowercase(),
+        )
+    } else {
+        (format!("{0}/{0}", repo), repo.to_lowercase())
+    };
+
+    (repo, name, tag.to_owned())
+}
+
 // this is imlemented as a Package method right now... should we move it out to here?
 // #[derive(Debug)]
 // pub enum MatchKind {

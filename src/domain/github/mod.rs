@@ -75,7 +75,7 @@ impl<'a> GitHub<'a> {
     //     self
     // }
 
-    pub async fn find_match(&self, pkg: &mut Package) -> Result<bool, AppError> {
+    pub async fn find_match(&self, pkg: &mut Package, force: bool) -> Result<bool, AppError> {
         let resp = match pkg.match_kind() {
             PackageMatchKind::Latest => {
                 let req_url = format!("https://api.github.com/repos/{}/releases/latest", &pkg.repo);
@@ -92,6 +92,9 @@ impl<'a> GitHub<'a> {
         };
         match resp {
             Ok(mut release) => {
+                if !force && &release.tag_name == pkg.tag.as_ref().unwrap() && release.published_at <= pkg.published_at.unwrap() {
+                    return Ok(false);
+                }
                 pkg.published_at = Some(release.published_at);
                 pkg.tag = Some(release.tag_name);
                 let asset = release.assets.pop().unwrap();

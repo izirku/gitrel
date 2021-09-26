@@ -73,8 +73,8 @@ impl ConfigurationManager {
             None => gh_token_from_file(&gh_token_file),
         };
 
-        dbg!(&config);
-        dbg!(&token);
+        // dbg!(&config);
+        // dbg!(&token);
 
         Ok(ConfigurationManager {
             token,

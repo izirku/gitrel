@@ -1,29 +1,97 @@
-use crate::business::conf::{ConfigurationManager, Package};
-use crate::business::github::{GitHub, GithubResponse};
-use crate::Result;
+use crate::domain::installer;
+use crate::domain::util::parse_gh_repo_spec;
+use crate::domain::{conf::ConfigurationManager, github::GitHub};
 use crate::error::AppError;
-use clap::ArgMatches;
+use crate::Result;
+use anyhow::Context;
+use clap::{crate_name, ArgMatches};
+use colored::*;
 
-pub async fn process(cm: &ConfigurationManager, matches: &ArgMatches) -> Result<()> {
-    let req_pkgs = cm.requested_packages()?;
-    match cm.installed_packages() {
-        Err(e) if e => return 
-    }
+/// Update installed packages
+pub async fn update(matches: &ArgMatches) -> Result<()> {
+    let cm = ConfigurationManager::with_clap_matches(matches)?;
 
-    let gh = GitHub::new(cm)?;
+    let mut packages = match cm.get_packages() {
+        Ok(packages) => packages,
+        Err(AppError::NotFound) => {
+            println!(
+                "No managed installationts on this system. Use `{} install  repo@[*|name|semver]` to install a package",
+                crate_name!(),
+            );
+            return Ok(());
+        }
+        Err(e) => return Err(e),
+    };
 
-    if !matches.is_present("all") {
-        unimplemented!();
-    }
+    let mut needs_save = false;
+    let client = reqwest::Client::new();
+    let temp_dir = tempfile::tempdir().expect("creating a temp dir failed");
 
-    for (name, requested) in req_pkgs.iter() {
-        let pkg = Package::create(name, Some(requested), None);
-        let release = gh.get_matching_release(&pkg).await?;
+    let gh = GitHub::create(&client, cm.token.as_ref(), cm.gh_per_page, cm.gh_max_pages);
 
-        if let GithubResponse::Ok(release) = &release {
-            println!("{} {} -> {}", name, requested.version, release.tag_name);
+    // update --all packages
+    if matches.is_present("all") {
+        for (name, pkg) in &mut packages {
+            pkg.name = Some(name.to_owned());
+            if gh.find_match(pkg, false).await? {
+                println!("updating package: {}", &pkg.name.as_ref().unwrap().green());
+
+                gh.download(pkg, &temp_dir).await?;
+                installer::install(pkg, &cm.bin_dir).await?;
+                needs_save = true;
+                // let key = pkg.name.as_ref().unwrap().to_owned();
+                // packages.insert(key, pkg);
+            }
         }
     }
+
+    // update a single package
+    if let Some(repo) = matches.value_of("repo") {
+        let (_repo, repo_name, requested) = parse_gh_repo_spec(repo);
+        if !packages.contains_key("repo_name") {
+            println!(
+                "{1} it not installed on this system. Use `{0} install  {1}` to install a package",
+                crate_name!(),
+                repo,
+            );
+            return Ok(());
+        }
+
+        let pkg = packages
+            .get_mut(&repo_name)
+            .context("failed to read a package spec from installed packages registry")?;
+
+        pkg.requested = requested;
+
+        if gh.find_match(pkg, false).await? {
+            gh.download(pkg, &temp_dir).await?;
+            installer::install(pkg, &cm.bin_dir).await?;
+            needs_save = true;
+        }
+    }
+
+    if needs_save {
+        cm.put_packages(&packages)?;
+    }
+    //     let req_pkgs = cm.requested_packages()?;
+    //     match cm.installed_packages() {
+    //         Err(e) if e => return,
+    //     }
+
+    //     let gh = GitHub::new(cm)?;
+
+    //     if !matches.is_present("all") {
+    //         unimplemented!();
+    //     }
+
+    //     for (name, requested) in req_pkgs.iter() {
+    //         let pkg = Package::create(name, Some(requested), None);
+    //         let release = gh.get_matching_release(&pkg).await?;
+
+    //         if let GithubResponse::Ok(release) = &release {
+    //             println!("{} {} -> {}", name, requested.version, release.tag_name);
+    //         }
+    //     }
 
     Ok(())
 }

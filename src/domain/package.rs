@@ -1,3 +1,4 @@
+use super::util::parse_gh_repo_spec;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
@@ -61,31 +62,6 @@ impl Package {
             PackageMatchKind::Exact
         }
     }
-}
-
-/// Returns a triple (repo, repo_name, requested)
-fn parse_gh_repo_spec(repo_spec: &str) -> (String, String, String) {
-    let (repo, tag) = if repo_spec.contains('@') {
-        let (repo, tag) = repo_spec.split_at(repo_spec.find('@').unwrap());
-        (repo, tag.trim_start_matches('@'))
-    } else {
-        (repo_spec, "*")
-    };
-
-    let (repo, name) = if repo.contains('/') {
-        (
-            repo.to_owned(),
-            repo.split_at(repo.find('/').unwrap())
-                .1
-                .get(1..)
-                .unwrap()
-                .to_lowercase(),
-        )
-    } else {
-        (format!("{0}/{0}", repo), repo.to_lowercase())
-    };
-
-    (repo, name, tag.to_owned())
 }
 
 // fn parse_gh_repo_name(str: &str) -> String {
