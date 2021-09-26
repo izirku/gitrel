@@ -37,7 +37,7 @@ pub async fn update(matches: &ArgMatches) -> Result<()> {
                 println!("updating package: {}", &pkg.name.as_ref().unwrap().green());
 
                 gh.download(pkg, &temp_dir).await?;
-                installer::install(pkg, &cm.bin_dir).await?;
+                installer::install(pkg, &cm.bin_dir, cm.strip).await?;
                 needs_save = true;
                 // let key = pkg.name.as_ref().unwrap().to_owned();
                 // packages.insert(key, pkg);
@@ -65,7 +65,7 @@ pub async fn update(matches: &ArgMatches) -> Result<()> {
 
         if gh.find_match(pkg, false).await? {
             gh.download(pkg, &temp_dir).await?;
-            installer::install(pkg, &cm.bin_dir).await?;
+            installer::install(pkg, &cm.bin_dir, cm.strip).await?;
             needs_save = true;
         }
     }

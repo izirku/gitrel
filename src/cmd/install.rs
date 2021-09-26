@@ -38,7 +38,7 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
         println!("installing package:\n\n{:#?}", &pkg);
 
         gh.download(&mut pkg, &temp_dir).await?;
-        installer::install(&pkg, &cm.bin_dir).await?;
+        installer::install(&pkg, &cm.bin_dir, cm.strip).await?;
         let key = pkg.name.as_ref().unwrap().to_owned();
         packages.insert(key, pkg);
         cm.put_packages(&packages)?;

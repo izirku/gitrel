@@ -15,7 +15,7 @@ pub async fn info(matches: &ArgMatches) -> Result<()> {
 
     let gh = GitHub::create(&client, cm.token.as_ref(), cm.gh_per_page, cm.gh_max_pages);
 
-    if gh.find_match(&mut pkg, false).await? {
+    if gh.find_match(&mut pkg, true).await? {
         println!("found:\n\n{:#?}", &pkg);
     }
 

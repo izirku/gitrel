@@ -7,7 +7,7 @@ use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use std::ffi::OsStr;
 use std::fs::{File, OpenOptions};
-use std::io::BufReader;
+use std::io::{BufReader, Write};
 use std::path::Path;
 #[cfg(target_family = "unix")]
 use std::{
@@ -19,7 +19,7 @@ use zip::ZipArchive;
 // use tokio::fs::File;
 // use tokio::io::{self, AsyncWriteExt};
 
-pub async fn install(pkg: &Package, bin_dir: &Path) -> Result<(), AppError> {
+pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<(), AppError> {
     cfg_if::cfg_if! {
         if #[cfg(target_os="windows")] {
             let file_name = format!("{}.exe", pkg.name.as_ref().unwrap()).as_str();
@@ -64,7 +64,16 @@ pub async fn install(pkg: &Package, bin_dir: &Path) -> Result<(), AppError> {
     cfg_if::cfg_if! {
         if #[cfg(target_family = "unix")] {
             match set_permissions(dest, Permissions::from_mode(0o755)) {
-                Ok(_) => Ok(()),
+                Ok(_) => {
+                    if strip {
+                        let output = std::process::Command::new("strip").arg(dest).output().context("stripping the executable")?;
+                        std::io::stdout().write_all(&output.stdout).context("writing to stdout")?;
+                        std::io::stderr().write_all(&output.stderr).context("writing to stderr")?;
+                        Ok(())
+                    } else {
+                        Ok(())
+                    }
+                },
                 Err(e) => Err(AppError::AnyHow(
                     anyhow::Error::new(e).context("setting the executable bit"),
                 )),
