@@ -5,8 +5,8 @@ mod response;
 // use self::asset::Asset;
 use self::release::Release;
 use self::response::GithubResponse;
-use super::util;
 use super::package::{Package, PackageMatchKind};
+use super::util;
 use crate::error::AppError;
 use anyhow::Context;
 use reqwest::{header, Client, Method};
@@ -92,9 +92,17 @@ impl<'a> GitHub<'a> {
         };
         match resp {
             Ok(mut release) => {
-                if !force && &release.tag_name == pkg.tag.as_ref().unwrap() && release.published_at <= pkg.published_at.unwrap() {
+                // dbg!(&release);
+
+                if !force
+                    && pkg.tag.is_some()
+                    && pkg.published_at.is_some()
+                    && &release.tag_name == pkg.tag.as_ref().unwrap()
+                    && release.published_at <= pkg.published_at.unwrap()
+                {
                     return Ok(false);
                 }
+
                 pkg.published_at = Some(release.published_at);
                 pkg.tag = Some(release.tag_name);
                 let asset = release.assets.pop().unwrap();
@@ -116,6 +124,8 @@ impl<'a> GitHub<'a> {
             .await
             .context("fething latest release")?;
 
+        // dbg!(&resp);
+        // dbg!(&resp.status());
         if resp.status().as_u16() == 404 {
             return Err(AppError::NotFound);
         }

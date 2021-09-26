@@ -8,7 +8,7 @@ lazy_static! {
     pub static ref SEMVER: Regex = Regex::new(r"(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?").expect("error parsing regex");
 
     static ref TERMS: Regex =
-        Regex::new(r"(x86_64|x86\-64|[a-zA-Z0-9]+)").expect("error parsing regex");
+        Regex::new(r"(x86_64|x86\-64|32\-bit|[a-zA-Z0-9]+)").expect("error parsing regex");
 }
 
 pub fn matches_target(str: &str) -> bool {
@@ -58,12 +58,9 @@ pub fn archive_kind(str: &str) -> ArchiveKind {
         return ArchiveKind::Uncompressed;
     }
 
+    // order does matter
     if str.ends_with(".zip") {
         ArchiveKind::Zip
-    } else if str.ends_with(".gz") || str.ends_with(".gzip") || str.ends_with(".gnuzip") {
-        ArchiveKind::GZip
-    } else if str.ends_with(".bz2") || str.ends_with(".bzip2") {
-        ArchiveKind::BZip
     } else if str.ends_with(".tar.gz") || str.ends_with(".tgz") {
         ArchiveKind::Tar(TarKind::GZip)
     } else if str.ends_with(".tar.bz2") || str.ends_with(".tbz") {
@@ -72,6 +69,10 @@ pub fn archive_kind(str: &str) -> ArchiveKind {
         ArchiveKind::Tar(TarKind::XZ)
     } else if str.ends_with(".tar") {
         ArchiveKind::Tar(TarKind::Uncompressed)
+    } else if str.ends_with(".gz") || str.ends_with(".gzip") || str.ends_with(".gnuzip") {
+        ArchiveKind::GZip
+    } else if str.ends_with(".bz2") || str.ends_with(".bzip2") {
+        ArchiveKind::BZip
     } else if str.ends_with(".xz") {
         ArchiveKind::XZ
     } else {

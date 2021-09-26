@@ -193,10 +193,12 @@ fn extract_tar(
     file_name: &str,
     dest: &Path,
 ) -> Result<(), AppError> {
+    // dbg!(&tar_kind);
     let tarball_path = match tar_kind {
         TarKind::GZip => {
             let uncompressed = archive.with_extension("");
             extract_gzip(archive, &uncompressed)?;
+            dbg!(&uncompressed);
             uncompressed
         }
         TarKind::BZip => {
@@ -213,6 +215,7 @@ fn extract_tar(
     };
 
     let reader = BufReader::new(File::open(tarball_path).context("reading a tarball")?);
+    // let reader = File::open(tarball_path).context("reading a tarball")?;
     let mut tarball = tar::Archive::new(reader);
 
     for entry in tarball.entries().context("reading tarball entries")? {

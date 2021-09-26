@@ -35,7 +35,8 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
     let gh = GitHub::create(&client, cm.token.as_ref(), cm.gh_per_page, cm.gh_max_pages);
 
     if gh.find_match(&mut pkg, force_reinstall).await? {
-        println!("installing package:\n\n{:#?}", &pkg);
+        // println!("installing package:\n\n{:#?}", &pkg);
+        println!("installing package: {}", &pkg.name.as_ref().unwrap());
 
         gh.download(&mut pkg, &temp_dir).await?;
         installer::install(&pkg, &cm.bin_dir, cm.strip).await?;

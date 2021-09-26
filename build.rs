@@ -29,6 +29,7 @@ fn main() {
         exclude_set.remove("386");
         exclude_set.remove("i586");
         exclude_set.remove("i686");
+        exclude_set.remove("32-bit");
     }
 
     if let Some(abi) = platforms::target::TARGET_ENV {
@@ -66,6 +67,7 @@ lazy_static! {
         "src",
         "vsix",
         "win64",
+        "txt",
         // ===============================================
         // OS
         "aix",
@@ -92,6 +94,7 @@ lazy_static! {
         "zos",
         // ===============================================
         // ARCH
+        "32-bit",
         "386",
         "aarch64",
         "amd64",
@@ -102,6 +105,7 @@ lazy_static! {
         "armbe",
         "armebv7r",
         "armv5te",
+        "armv6",
         "armv7",
         "armv7a",
         "armv7r",
