@@ -2,6 +2,7 @@ use super::util::parse_gh_repo_spec;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
+use url::Url;
 
 pub type PackageMap = BTreeMap<String, Package>;
 
@@ -9,13 +10,13 @@ pub type PackageMap = BTreeMap<String, Package>;
 /// an interchange format between [ConfigurationManager](crate::business::conf::ConfigurationManager),
 /// [GitHub](crate::business::github::GitHub),
 /// and [Installer](crate::business::installer::Installer).
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Package {
     /// lower cased *repository name*
     #[serde(skip)]
     pub name: Option<String>,
     /// is `repo_user/repo_name`
-    pub repo: String,
+    pub repo: Url,
     /// *release tag* of an installed or a *matched* release
     pub tag: Option<String>,
     pub published_at: Option<DateTime<Utc>>,
@@ -48,8 +49,12 @@ impl Package {
         Self {
             name: Some(repo_name),
             repo,
+            tag: None,
             requested,
-            ..Default::default()
+            published_at: None,
+            asset_id: None,
+            asset_name: None,
+            asset_path: None,
         }
     }
 

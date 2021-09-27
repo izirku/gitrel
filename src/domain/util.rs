@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashSet;
+use url::Url;
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
@@ -81,10 +82,11 @@ pub fn archive_kind(str: &str) -> ArchiveKind {
 }
 
 /// Returns a triple (repo, repo_name, requested)
-pub fn parse_gh_repo_spec(repo_spec: &str) -> (String, String, String) {
-    let (repo, tag) = if repo_spec.contains('@') {
-        let (repo, tag) = repo_spec.split_at(repo_spec.find('@').unwrap());
-        (repo, tag.trim_start_matches('@'))
+pub fn parse_gh_repo_spec(repo_spec: &str) -> (Url, String, String) {
+    let (repo, requested) = if repo_spec.contains('@') {
+        let (repo, requested) = repo_spec.split_at(repo_spec.find('@').unwrap());
+        let repo = Url::parse(repo).or_else(Url::parse("https://github.com/").and_then(|url| url.join(repo))).unwrap();
+        (repo, requested.trim_start_matches('@'))
     } else {
         (repo_spec, "*")
     };
@@ -102,7 +104,7 @@ pub fn parse_gh_repo_spec(repo_spec: &str) -> (String, String, String) {
         (format!("{0}/{0}", repo), repo.to_lowercase())
     };
 
-    (repo, name, tag.to_owned())
+    (repo, name, requested.to_owned())
 }
 
 // this is imlemented as a Package method right now... should we move it out to here?
