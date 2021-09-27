@@ -2,8 +2,7 @@ use crate::domain::conf::ConfigurationManager;
 use crate::domain::github::GitHub;
 use crate::domain::installer;
 use crate::domain::package::{Package, PackageMap};
-use crate::error::AppError;
-use crate::Result;
+use crate::{AppError, Result};
 use clap::{crate_name, ArgMatches};
 
 // Install packages

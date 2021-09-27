@@ -1,11 +1,10 @@
 mod cmd;
 mod domain;
-mod error;
 mod foundation;
 
 // use anyhow::Result;
 // use crate::business::conf::ConfigurationManager;
-use crate::error::AppError;
+use crate::foundation::error::AppError;
 use clap::{crate_version, load_yaml, App};
 use std::future::Future;
 

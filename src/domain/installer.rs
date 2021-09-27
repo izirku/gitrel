@@ -1,7 +1,6 @@
 use super::package::Package;
 use super::util::{self, ArchiveKind, TarKind};
-use crate::error::AppError;
-use crate::Result;
+use crate::{AppError, Result};
 use anyhow::Context;
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;

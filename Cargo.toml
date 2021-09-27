@@ -14,7 +14,6 @@ include = ["src/**/*.rs", "crates-io.md", "README.md", "LICENSE-APACHE", "LICENS
 
 [dependencies]
 anyhow = "1.0.44"
-colored = "2.0.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 clap = { version = "3.0.0-beta.4", features = ["yaml"] }
 directories = "4.0.1"
@@ -35,6 +34,8 @@ zip = "0.5.13"
 tar = "0.4.37"
 flate2 = "1.0.22"
 cfg-if = "1.0.0"
+tabled = { version = "0.3.0", features = ["color"] }
+console = "0.14.1"
 
 [build-dependencies]
 platforms = "1.1.0"

@@ -7,7 +7,7 @@ use self::release::Release;
 use self::response::GithubResponse;
 use super::package::{Package, PackageMatchKind};
 use super::util;
-use crate::error::AppError;
+use crate::AppError;
 use anyhow::Context;
 use reqwest::{header, Client, Method};
 use tempfile::TempDir;

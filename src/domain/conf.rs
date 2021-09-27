@@ -1,5 +1,5 @@
 use super::package::PackageMap;
-use crate::error::AppError;
+use crate::AppError;
 use anyhow::Context;
 use clap::{crate_name, ArgMatches};
 use directories::{BaseDirs, ProjectDirs};

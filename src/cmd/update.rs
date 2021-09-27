@@ -1,11 +1,9 @@
 use crate::domain::installer;
 use crate::domain::util::parse_gh_repo_spec;
 use crate::domain::{conf::ConfigurationManager, github::GitHub};
-use crate::error::AppError;
-use crate::Result;
+use crate::{AppError, Result};
 use anyhow::Context;
 use clap::{crate_name, ArgMatches};
-use colored::*;
 
 /// Update installed packages
 pub async fn update(matches: &ArgMatches) -> Result<()> {
@@ -34,7 +32,7 @@ pub async fn update(matches: &ArgMatches) -> Result<()> {
         for (name, pkg) in &mut packages {
             pkg.name = Some(name.to_owned());
             if gh.find_match(pkg, false).await? {
-                println!("updating package: {}", &pkg.name.as_ref().unwrap().green());
+                println!("updating package: {}", &pkg.name.as_ref().unwrap());
 
                 gh.download(pkg, &temp_dir).await?;
                 installer::install(pkg, &cm.bin_dir, cm.strip).await?;
