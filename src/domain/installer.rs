@@ -4,6 +4,7 @@ use crate::{AppError, Result};
 use anyhow::Context;
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
+use indicatif::{ProgressBar, ProgressStyle};
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufReader, Write};
@@ -226,7 +227,9 @@ fn extract_tar(
         let entry_path = entry.path().context("getting a tarball entry path")?;
         if entry_path.file_name().and_then(OsStr::to_str).unwrap() == file_name {
             entry.unpack(dest).context("unpacking a tarball entry")?;
-            let bin_size = fs::metadata(dest).context("getting installed binary metadata")?.len();
+            let bin_size = fs::metadata(dest)
+                .context("getting installed binary metadata")?
+                .len();
             return Ok(bin_size);
         }
     }

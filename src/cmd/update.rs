@@ -1,6 +1,6 @@
-use crate::domain::{installer, util};
 use crate::domain::util::parse_gh_repo_spec;
 use crate::domain::{conf::ConfigurationManager, github::GitHub};
+use crate::domain::{installer, util};
 use crate::{AppError, Result};
 use anyhow::Context;
 use clap::{crate_name, ArgMatches};

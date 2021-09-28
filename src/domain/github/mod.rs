@@ -2,13 +2,16 @@ mod asset;
 mod release;
 mod response;
 
-// use self::asset::Asset;
+use std::cmp;
+
 use self::release::Release;
 use self::response::GithubResponse;
 use super::package::{Package, PackageMatchKind};
 use super::util;
 use crate::AppError;
 use anyhow::Context;
+use futures_util::StreamExt;
+use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::{header, Client, Method};
 use tempfile::TempDir;
 use tokio::fs::File;
@@ -78,14 +81,18 @@ impl<'a> GitHub<'a> {
     pub async fn find_match(&self, pkg: &mut Package, force: bool) -> Result<bool, AppError> {
         let resp = match pkg.match_kind() {
             PackageMatchKind::Latest => {
-                let req_url =  format!("https://api.github.com/repos{}/releases/latest", &pkg.repo.path());
+                let req_url = format!(
+                    "https://api.github.com/repos{}/releases/latest",
+                    &pkg.repo.path()
+                );
                 // let req_url = format!("https://api.github.com/repos/{}/releases/latest", &pkg.repo);
                 self.get_exact_release(&req_url).await
             }
             PackageMatchKind::Exact => {
                 let req_url = format!(
                     "https://api.github.com/repos{}/releases/tags/{}",
-                    &pkg.repo.path(), &pkg.requested,
+                    &pkg.repo.path(),
+                    &pkg.requested,
                 );
                 self.get_exact_release(&req_url).await
             }
@@ -162,7 +169,8 @@ impl<'a> GitHub<'a> {
     async fn find_release(&self, pkg: &Package) -> Result<Release, AppError> {
         let req_url = format!(
             "https://api.github.com/repos{}/releases?per_page={}",
-            &pkg.repo.path(), self.per_page,
+            &pkg.repo.path(),
+            self.per_page,
         );
 
         let mut curr_page = 1;
@@ -222,13 +230,14 @@ impl<'a> GitHub<'a> {
             pkg.asset_id.as_ref().unwrap()
         );
 
-        let mut resp = self
+        let resp = self
             .client
             .get(&req_url)
             .headers(self.dl_headers.clone())
             .send()
             .await
             .context("fething an asset")?;
+
         if resp.status() != StatusCode::OK {
             dbg!(&resp);
             let mut msg = format!("getting: {}", &req_url);
@@ -239,6 +248,19 @@ impl<'a> GitHub<'a> {
             return Err(AppError::AnyHow(anyhow!(msg)));
         }
 
+        let tot_size = resp.content_length().context("getting content length")?;
+
+        let pb = ProgressBar::new(tot_size);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                // .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+                .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+                .progress_chars("#>-")
+        );
+        // pb.set_message("Downloading");
+        let mut downloaded: u64 = 0;
+        let mut stream = resp.bytes_stream();
+
         let temp_file_name = temp_dir.path().join(pkg.asset_name.as_ref().unwrap());
         let mut temp_file = File::create(temp_file_name.as_path())
             .await
@@ -247,13 +269,26 @@ impl<'a> GitHub<'a> {
                 temp_file_name.as_path(),
             ))?;
 
-        while let Some(chunk) = resp.chunk().await.context("retrieving a next chunk")? {
+        // non-streaming:
+        // while let Some(chunk) = resp.chunk().await.context("retrieving a next chunk")? {
+        //     temp_file
+        //         .write_all(&chunk)
+        //         .await
+        //         .context("writing a chunk to temp file")?;
+        // }
+        // println!("temp file created: {:?}", &temp_file_name);
+        while let Some(item) = stream.next().await {
+            let chunk = item.context("retrieving a next chunk")?;
             temp_file
-                .write_all(&chunk)
+                .write(&chunk)
                 .await
                 .context("writing a chunk to temp file")?;
+            let new = cmp::min(downloaded + (chunk.len() as u64), tot_size);
+            downloaded = new;
+            pb.set_position(new);
         }
-        // println!("temp file created: {:?}", &temp_file_name);
+        // pb.finish_with_message("Downloaded");
+        pb.finish();
 
         pkg.asset_path = Some(temp_file_name);
         Ok(())

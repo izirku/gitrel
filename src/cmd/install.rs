@@ -5,6 +5,7 @@ use crate::domain::package::{Package, PackageMap};
 use crate::domain::util;
 use crate::{AppError, Result};
 use clap::{crate_name, ArgMatches};
+use console::style;
 
 // Install packages
 pub async fn install(matches: &ArgMatches) -> Result<()> {
@@ -40,9 +41,9 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
 
     if gh.find_match(&mut pkg, force_reinstall).await? {
         // println!("installing package:\n\n{:#?}", &pkg);
-        println!("installing package: {}", &repo_name);
-
+        println!("downloading binary: {}", style(&repo_name).green());
         gh.download(&mut pkg, &temp_dir).await?;
+        println!(" installing binary: {}", style(&repo_name).green());
         let bin_size = installer::install(&pkg, &cm.bin_dir, cm.strip).await?;
         println!("size: {}", bytesize::to_string(bin_size, false));
         packages.insert(repo_name, pkg);
