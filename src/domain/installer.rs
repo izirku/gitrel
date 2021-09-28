@@ -4,7 +4,6 @@ use crate::{AppError, Result};
 use anyhow::Context;
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
-use indicatif::{ProgressBar, ProgressStyle};
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufReader, Write};

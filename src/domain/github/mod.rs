@@ -11,7 +11,7 @@ use super::util;
 use crate::AppError;
 use anyhow::Context;
 use futures_util::StreamExt;
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::ProgressBar;
 use reqwest::{header, Client, Method};
 use tempfile::TempDir;
 use tokio::fs::File;
@@ -221,7 +221,12 @@ impl<'a> GitHub<'a> {
         }
     }
 
-    pub async fn download(&self, pkg: &mut Package, temp_dir: &TempDir) -> Result<(), AppError> {
+    pub async fn download(
+        &self,
+        pb: &ProgressBar,
+        pkg: &mut Package,
+        temp_dir: &TempDir,
+    ) -> Result<(), AppError> {
         use anyhow::anyhow;
         use reqwest::StatusCode;
         let req_url = format!(
@@ -249,15 +254,8 @@ impl<'a> GitHub<'a> {
         }
 
         let tot_size = resp.content_length().context("getting content length")?;
+        pb.set_length(tot_size);
 
-        let pb = ProgressBar::new(tot_size);
-        pb.set_style(
-            ProgressStyle::default_bar()
-                // .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
-                .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
-                .progress_chars("#>-")
-        );
-        // pb.set_message("Downloading");
         let mut downloaded: u64 = 0;
         let mut stream = resp.bytes_stream();
 
@@ -269,14 +267,6 @@ impl<'a> GitHub<'a> {
                 temp_file_name.as_path(),
             ))?;
 
-        // non-streaming:
-        // while let Some(chunk) = resp.chunk().await.context("retrieving a next chunk")? {
-        //     temp_file
-        //         .write_all(&chunk)
-        //         .await
-        //         .context("writing a chunk to temp file")?;
-        // }
-        // println!("temp file created: {:?}", &temp_file_name);
         while let Some(item) = stream.next().await {
             let chunk = item.context("retrieving a next chunk")?;
             temp_file
@@ -287,8 +277,6 @@ impl<'a> GitHub<'a> {
             downloaded = new;
             pb.set_position(new);
         }
-        // pb.finish_with_message("Downloaded");
-        pb.finish();
 
         pkg.asset_path = Some(temp_file_name);
         Ok(())

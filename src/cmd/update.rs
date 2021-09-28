@@ -4,6 +4,7 @@ use crate::domain::{installer, util};
 use crate::{AppError, Result};
 use anyhow::Context;
 use clap::{crate_name, ArgMatches};
+use indicatif::{ProgressBar, ProgressStyle};
 
 /// Update installed packages
 pub async fn update(matches: &ArgMatches) -> Result<()> {
@@ -27,13 +28,21 @@ pub async fn update(matches: &ArgMatches) -> Result<()> {
 
     let gh = GitHub::create(&client, cm.token.as_ref(), cm.gh_per_page, cm.gh_max_pages);
 
+    let pb = ProgressBar::new(100);
+    pb.set_style(
+            ProgressStyle::default_bar()
+                // .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+                .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+                .progress_chars("#>-")
+        );
+
     // update --all packages
     if matches.is_present("all") {
         for (name, pkg) in &mut packages {
             if gh.find_match(pkg, false).await? {
                 println!("updating package: {}", &name);
 
-                gh.download(pkg, &temp_dir).await?;
+                gh.download(&pb, pkg, &temp_dir).await?;
                 installer::install(pkg, &cm.bin_dir, cm.strip).await?;
                 needs_save = true;
             }
@@ -61,7 +70,8 @@ pub async fn update(matches: &ArgMatches) -> Result<()> {
         pkg.requested = requested;
 
         if gh.find_match(pkg, false).await? {
-            gh.download(pkg, &temp_dir).await?;
+            gh.download(&pb, pkg, &temp_dir).await?;
+            // gh.download(pkg, &temp_dir).await?;
             installer::install(pkg, &cm.bin_dir, cm.strip).await?;
             needs_save = true;
         }

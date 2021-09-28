@@ -6,6 +6,7 @@ use crate::domain::util;
 use crate::{AppError, Result};
 use clap::{crate_name, ArgMatches};
 use console::style;
+use indicatif::{ProgressBar, ProgressStyle};
 
 // Install packages
 pub async fn install(matches: &ArgMatches) -> Result<()> {
@@ -40,12 +41,46 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
     let gh = GitHub::create(&client, cm.token.as_ref(), cm.gh_per_page, cm.gh_max_pages);
 
     if gh.find_match(&mut pkg, force_reinstall).await? {
-        // println!("installing package:\n\n{:#?}", &pkg);
-        println!("downloading binary: {}", style(&repo_name).green());
-        gh.download(&mut pkg, &temp_dir).await?;
-        println!(" installing binary: {}", style(&repo_name).green());
-        let bin_size = installer::install(&pkg, &cm.bin_dir, cm.strip).await?;
-        println!("size: {}", bytesize::to_string(bin_size, false));
+        let repo_name = util::repo_name(&pkg.repo);
+
+        let pb = ProgressBar::new(100);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                .template("{spinner:.green} {msg}\n[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+                .progress_chars("#>-")
+        );
+
+        let msg = format!("downloading: {}", style(&repo_name).green());
+        pb.set_message(msg);
+        gh.download(&pb, &mut pkg, &temp_dir).await?;
+
+        let msg = format!("installing: {}", style(&repo_name).green());
+        pb.set_message(msg);
+        match installer::install(&pkg, &cm.bin_dir, cm.strip).await {
+            Ok(bin_size) => {
+                let msg = format!(
+                    "{} installed: {} ({})",
+                    style('✓').green(),
+                    style(&repo_name).green(),
+                    bytesize::to_string(bin_size, false),
+                );
+                pb.set_style(ProgressStyle::default_bar().template("{msg}"));
+                pb.finish_with_message(msg);
+            }
+            Err(e) => {
+                let msg = format!(
+                    "{} installed: {}",
+                    style('✗').red(),
+                    style(&repo_name).red()
+                );
+                pb.set_style(ProgressStyle::default_bar().template("{msg}"));
+                pb.finish_with_message(msg);
+                // TODO: proper error aggregation and reporting?
+                return Err(e);
+            }
+        }
+        // println!("size: {}", bytesize::to_string(bin_size, false));
+
         packages.insert(repo_name, pkg);
         cm.put_packages(&packages)?;
     }
