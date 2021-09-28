@@ -21,22 +21,24 @@ use zip::ZipArchive;
 pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<(), AppError> {
     cfg_if::cfg_if! {
         if #[cfg(target_os="windows")] {
-            let file_name = format!("{}.exe", pkg.name.as_ref().unwrap()).as_str();
+            // let file_name = format!("{}.exe", pkg.name.as_ref().unwrap()).as_str();
+            let file_name = format!("{}.exe", util::repo_name(&pkg.repo));
         } else {
-            let file_name = pkg.name.as_ref().unwrap().as_str();
+            let file_name = util::repo_name(&pkg.repo);
+            // let file_name = pkg.name.as_ref().unwrap().as_str();
         }
     }
 
     let archive_path = pkg.asset_path.as_ref().unwrap().as_path();
-    let dest = bin_dir.join(file_name);
+    let dest = bin_dir.join(&file_name);
     let dest = dest.as_path();
 
     match util::archive_kind(pkg.asset_name.as_ref().unwrap()) {
         ArchiveKind::GZip => extract_gzip(archive_path, dest),
         ArchiveKind::BZip => extract_bzip(archive_path, dest),
         ArchiveKind::XZ => extract_xz(archive_path, dest),
-        ArchiveKind::Zip => extract_zip(archive_path, file_name, dest),
-        ArchiveKind::Tar(tar_kind) => extract_tar(archive_path, tar_kind, file_name, dest),
+        ArchiveKind::Zip => extract_zip(archive_path, &file_name, dest),
+        ArchiveKind::Tar(tar_kind) => extract_tar(archive_path, tar_kind, &file_name, dest),
         ArchiveKind::Uncompressed => {
             let mut reader = BufReader::new(
                 File::open(pkg.asset_path.as_ref().unwrap()).context("opening downloaded file")?,
@@ -45,7 +47,12 @@ pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<(), A
                 .write(true)
                 .create(true)
                 .open(dest)
-                .context("opening destination")?;
+                .context(format!(
+                    "{}:{}: {}",
+                    file!(),
+                    line!(),
+                    "opening destination"
+                ))?;
 
             match std::io::copy(&mut reader, &mut dest_file) {
                 Ok(n) => {
@@ -88,11 +95,17 @@ fn extract_gzip(archive: &Path, dest: &Path) -> Result<(), AppError> {
     let mut reader = BufReader::new(GzDecoder::new(
         File::open(archive).context("opening a gzip file")?,
     ));
+    dbg!(dest);
     let mut dest_file = OpenOptions::new()
         .write(true)
         .create(true)
         .open(dest)
-        .context("opening destination")?;
+        .context(format!(
+            "{}:{}: {}",
+            file!(),
+            line!(),
+            "opening destination"
+        ))?;
     match std::io::copy(&mut reader, &mut dest_file) {
         Ok(n) => {
             println!("decompressed bytes: {}", n);
@@ -112,7 +125,12 @@ fn extract_bzip(archive: &Path, dest: &Path) -> Result<(), AppError> {
         .write(true)
         .create(true)
         .open(dest)
-        .context("opening destination")?;
+        .context(format!(
+            "{}:{}: {}",
+            file!(),
+            line!(),
+            "opening destination"
+        ))?;
     match std::io::copy(&mut reader, &mut dest_file) {
         Ok(n) => {
             println!("decompressed bytes: {}", n);
@@ -132,7 +150,12 @@ fn extract_xz(archive: &Path, dest: &Path) -> Result<(), AppError> {
         .write(true)
         .create(true)
         .open(dest)
-        .context("opening destination")?;
+        .context(format!(
+            "{}:{}: {}",
+            file!(),
+            line!(),
+            "opening destination"
+        ))?;
     match std::io::copy(&mut reader, &mut dest_file) {
         Ok(n) => {
             println!("decompressed bytes: {}", n);
@@ -171,7 +194,12 @@ fn extract_zip(archive: &Path, file_name: &str, dest: &Path) -> Result<(), AppEr
             .write(true)
             .create(true)
             .open(dest)
-            .context("opening destination")?;
+            .context(format!(
+                "{}:{}: {}",
+                file!(),
+                line!(),
+                "opening destination"
+            ))?;
 
         return match std::io::copy(&mut reader, &mut dest_file) {
             Ok(n) => {

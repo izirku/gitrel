@@ -78,13 +78,14 @@ impl<'a> GitHub<'a> {
     pub async fn find_match(&self, pkg: &mut Package, force: bool) -> Result<bool, AppError> {
         let resp = match pkg.match_kind() {
             PackageMatchKind::Latest => {
-                let req_url = format!("https://api.github.com/repos/{}/releases/latest", &pkg.repo);
+                let req_url =  format!("https://api.github.com/repos{}/releases/latest", &pkg.repo.path());
+                // let req_url = format!("https://api.github.com/repos/{}/releases/latest", &pkg.repo);
                 self.get_exact_release(&req_url).await
             }
             PackageMatchKind::Exact => {
                 let req_url = format!(
-                    "https://api.github.com/repos/{}/releases/tags/{}",
-                    &pkg.repo, &pkg.requested,
+                    "https://api.github.com/repos{}/releases/tags/{}",
+                    &pkg.repo.path(), &pkg.requested,
                 );
                 self.get_exact_release(&req_url).await
             }
@@ -101,14 +102,14 @@ impl<'a> GitHub<'a> {
                 // NB: Strict comparison for equality should be faster and enough.
                 if !force
                     && pkg.tag.is_some() // newly requested package will have `None`
-                    && pkg.published_at.is_some() // newly requested package will have `None`
+                    && pkg.timestamp.is_some() // newly requested package will have `None`
                     && &release.tag_name == pkg.tag.as_ref().unwrap()
-                    && release.published_at == pkg.published_at.unwrap()
+                    && release.published_at == pkg.timestamp.unwrap()
                 {
                     return Ok(false);
                 }
 
-                pkg.published_at = Some(release.published_at);
+                pkg.timestamp = Some(release.published_at);
                 pkg.tag = Some(release.tag_name);
                 let asset = release.assets.pop().unwrap();
                 pkg.asset_id = Some(asset.id.to_string());
@@ -160,8 +161,8 @@ impl<'a> GitHub<'a> {
 
     async fn find_release(&self, pkg: &Package) -> Result<Release, AppError> {
         let req_url = format!(
-            "https://api.github.com/repos/{}/releases?per_page={}",
-            &pkg.repo, self.per_page,
+            "https://api.github.com/repos{}/releases?per_page={}",
+            &pkg.repo.path(), self.per_page,
         );
 
         let mut curr_page = 1;
@@ -216,8 +217,8 @@ impl<'a> GitHub<'a> {
         use anyhow::anyhow;
         use reqwest::StatusCode;
         let req_url = format!(
-            "https://api.github.com/repos/{}/releases/assets/{}",
-            &pkg.repo,
+            "https://api.github.com/repos{}/releases/assets/{}",
+            &pkg.repo.path(),
             pkg.asset_id.as_ref().unwrap()
         );
 

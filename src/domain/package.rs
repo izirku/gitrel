@@ -12,19 +12,20 @@ pub type PackageMap = BTreeMap<String, Package>;
 /// and [Installer](crate::business::installer::Installer).
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Package {
-    /// lower cased *repository name*
-    #[serde(skip)]
-    pub name: Option<String>,
+    // lower cased *repository name*
+    // #[serde(skip)]
+    // pub name: Option<String>,
     /// is `repo_user/repo_name`
     pub repo: Url,
     /// *release tag* of an installed or a *matched* release
     pub tag: Option<String>,
-    pub published_at: Option<DateTime<Utc>>,
     /// a requested *version*, can be one of:
     /// - `"*"` - latest release (default)
     /// - `"<plain string>"` - a named release (can be a pre-release)
     /// - `"<SEMVER string>"` - a *semver* to match against *release tag*
     pub requested: String,
+    /// When remote repo was last updated
+    pub timestamp: Option<DateTime<Utc>>,
     /// Used by GitHub APIs to identify and download an asset
     #[serde(skip)]
     pub asset_id: Option<String>,
@@ -44,14 +45,15 @@ pub enum PackageMatchKind {
 
 impl Package {
     pub fn create(repo_spec: &str) -> Self {
-        let (repo, repo_name, requested) = parse_gh_repo_spec(repo_spec);
+        // let (repo, repo_name, requested) = parse_gh_repo_spec(repo_spec);
+        let (repo, requested) = parse_gh_repo_spec(repo_spec);
 
         Self {
-            name: Some(repo_name),
+            // name: Some(repo_name),
             repo,
             tag: None,
             requested,
-            published_at: None,
+            timestamp: None,
             asset_id: None,
             asset_name: None,
             asset_path: None,

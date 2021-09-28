@@ -1,4 +1,4 @@
-use crate::domain::installer;
+use crate::domain::{installer, util};
 use crate::domain::util::parse_gh_repo_spec;
 use crate::domain::{conf::ConfigurationManager, github::GitHub};
 use crate::{AppError, Result};
@@ -30,9 +30,9 @@ pub async fn update(matches: &ArgMatches) -> Result<()> {
     // update --all packages
     if matches.is_present("all") {
         for (name, pkg) in &mut packages {
-            pkg.name = Some(name.to_owned());
+            // pkg.name = Some(name.to_owned());
             if gh.find_match(pkg, false).await? {
-                println!("updating package: {}", &pkg.name.as_ref().unwrap());
+                println!("updating package: {}", &name);
 
                 gh.download(pkg, &temp_dir).await?;
                 installer::install(pkg, &cm.bin_dir, cm.strip).await?;
@@ -44,13 +44,15 @@ pub async fn update(matches: &ArgMatches) -> Result<()> {
     }
 
     // update a single package
-    if let Some(repo) = matches.value_of("repo") {
-        let (_repo, repo_name, requested) = parse_gh_repo_spec(repo);
-        if !packages.contains_key("repo_name") {
+    if let Some(repo_spec) = matches.value_of("repo") {
+        // let (_repo, repo_name, requested) = parse_gh_repo_spec(repo);
+        let (repo_url, requested) = parse_gh_repo_spec(repo_spec);
+        let repo_name = util::repo_name(&repo_url);
+        if !packages.contains_key(&repo_name) {
             println!(
                 "{1} it not installed on this system. Use `{0} install  {1}` to install a package",
                 crate_name!(),
-                repo,
+                repo_spec,
             );
             return Ok(());
         }

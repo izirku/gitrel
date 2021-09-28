@@ -81,30 +81,64 @@ pub fn archive_kind(str: &str) -> ArchiveKind {
     }
 }
 
+// pub fn bin_name(repo_url: &Url) -> String {
+
+//     cfg_if::cfg_if! {
+//         if #[cfg(target_os="windows")] {
+//             // let file_name = format!("{}.exe", pkg.name.as_ref().unwrap()).as_str();
+//             let file_name = format!("{}.exe", util::repo_name(&pkg.repo));
+//         } else {
+//             let file_name = util::repo_name(&pkg.repo);
+//             // let file_name = pkg.name.as_ref().unwrap().as_str();
+//         }
+//     }
+// }
+
+pub fn repo_name(repo_url: &Url) -> String {
+    let (_, repo_name) = repo_url
+        .path()
+        .split_at(repo_url.path().rfind('/').unwrap());
+    let repo_name = repo_name.trim_start_matches('/');
+    repo_name.to_lowercase()
+}
+
+// pub fn parse_gh_repo_spec(repo_spec: &str) -> (Url, String, String) {
 /// Returns a triple (repo, repo_name, requested)
-pub fn parse_gh_repo_spec(repo_spec: &str) -> (Url, String, String) {
+pub fn parse_gh_repo_spec(repo_spec: &str) -> (Url, String) {
     let (repo, requested) = if repo_spec.contains('@') {
         let (repo, requested) = repo_spec.split_at(repo_spec.find('@').unwrap());
-        let repo = Url::parse(repo).or_else(Url::parse("https://github.com/").and_then(|url| url.join(repo))).unwrap();
         (repo, requested.trim_start_matches('@'))
     } else {
         (repo_spec, "*")
     };
 
-    let (repo, name) = if repo.contains('/') {
-        (
-            repo.to_owned(),
-            repo.split_at(repo.find('/').unwrap())
-                .1
-                .get(1..)
-                .unwrap()
-                .to_lowercase(),
-        )
-    } else {
-        (format!("{0}/{0}", repo), repo.to_lowercase())
-    };
+    let repo = Url::parse(repo)
+        .or_else(|_| {
+            Url::parse("https://github.com/").and_then(|url| {
+                if repo.contains('/') {
+                    url.join(repo)
+                } else {
+                    url.join(format!("{0}/{0}", repo).as_str())
+                }
+            })
+        })
+        .unwrap();
 
-    (repo, name, requested.to_owned())
+    // let (repo, name) = if repo.contains('/') {
+    //     (
+    //         repo.to_owned(),
+    //         repo.split_at(repo.find('/').unwrap())
+    //             .1
+    //             .get(1..)
+    //             .unwrap()
+    //             .to_lowercase(),
+    //     )
+    // } else {
+    //     (format!("{0}/{0}", repo), repo.to_lowercase())
+    // };
+
+    // (repo, name, requested.to_owned())
+    (repo, requested.to_owned())
 }
 
 // this is imlemented as a Package method right now... should we move it out to here?
