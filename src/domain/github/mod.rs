@@ -253,7 +253,7 @@ impl<'a> GitHub<'a> {
                 .await
                 .context("writing a chunk to temp file")?;
         }
-        println!("temp file created: {:?}", &temp_file_name);
+        // println!("temp file created: {:?}", &temp_file_name);
 
         pkg.asset_path = Some(temp_file_name);
         Ok(())

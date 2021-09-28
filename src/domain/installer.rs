@@ -5,7 +5,7 @@ use anyhow::Context;
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use std::ffi::OsStr;
-use std::fs::{File, OpenOptions};
+use std::fs::{self, File, OpenOptions};
 use std::io::{BufReader, Write};
 use std::path::Path;
 #[cfg(target_family = "unix")]
@@ -18,22 +18,13 @@ use zip::ZipArchive;
 // use tokio::fs::File;
 // use tokio::io::{self, AsyncWriteExt};
 
-pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<(), AppError> {
-    cfg_if::cfg_if! {
-        if #[cfg(target_os="windows")] {
-            // let file_name = format!("{}.exe", pkg.name.as_ref().unwrap()).as_str();
-            let file_name = format!("{}.exe", util::repo_name(&pkg.repo));
-        } else {
-            let file_name = util::repo_name(&pkg.repo);
-            // let file_name = pkg.name.as_ref().unwrap().as_str();
-        }
-    }
-
+pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<u64, AppError> {
+    let file_name = util::bin_name(&pkg.repo);
     let archive_path = pkg.asset_path.as_ref().unwrap().as_path();
     let dest = bin_dir.join(&file_name);
     let dest = dest.as_path();
 
-    match util::archive_kind(pkg.asset_name.as_ref().unwrap()) {
+    let bin_size = match util::archive_kind(pkg.asset_name.as_ref().unwrap()) {
         ArchiveKind::GZip => extract_gzip(archive_path, dest),
         ArchiveKind::BZip => extract_bzip(archive_path, dest),
         ArchiveKind::XZ => extract_xz(archive_path, dest),
@@ -55,10 +46,7 @@ pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<(), A
                 ))?;
 
             match std::io::copy(&mut reader, &mut dest_file) {
-                Ok(n) => {
-                    println!("installed size: {}", n);
-                    Ok(())
-                }
+                Ok(n) => Ok(n),
                 Err(e) => Err(AppError::AnyHow(
                     anyhow::Error::new(e).context("installing an uncompressed binary"),
                 )),
@@ -75,9 +63,10 @@ pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<(), A
                         let output = std::process::Command::new("strip").arg(dest).output().context("stripping the executable")?;
                         std::io::stdout().write_all(&output.stdout).context("writing to stdout")?;
                         std::io::stderr().write_all(&output.stderr).context("writing to stderr")?;
-                        Ok(())
+                        let bin_size = fs::metadata(dest).context("getting installed binary metadata")?.len();
+                        Ok(bin_size)
                     } else {
-                        Ok(())
+                        Ok(bin_size)
                     }
                 },
                 Err(e) => Err(AppError::AnyHow(
@@ -85,17 +74,16 @@ pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<(), A
                 )),
             }
         } else {
-            Ok(())
+            Ok(bin_size)
         }
     }
 }
 
 // TODO: maybe use flate2's tokio stuff?
-fn extract_gzip(archive: &Path, dest: &Path) -> Result<(), AppError> {
+fn extract_gzip(archive: &Path, dest: &Path) -> Result<u64, AppError> {
     let mut reader = BufReader::new(GzDecoder::new(
         File::open(archive).context("opening a gzip file")?,
     ));
-    dbg!(dest);
     let mut dest_file = OpenOptions::new()
         .write(true)
         .create(true)
@@ -107,17 +95,14 @@ fn extract_gzip(archive: &Path, dest: &Path) -> Result<(), AppError> {
             "opening destination"
         ))?;
     match std::io::copy(&mut reader, &mut dest_file) {
-        Ok(n) => {
-            println!("decompressed bytes: {}", n);
-            Ok(())
-        }
+        Ok(n) => Ok(n),
         Err(e) => Err(AppError::AnyHow(
             anyhow::Error::new(e).context("decompressing a gzip file"),
         )),
     }
 }
 
-fn extract_bzip(archive: &Path, dest: &Path) -> Result<(), AppError> {
+fn extract_bzip(archive: &Path, dest: &Path) -> Result<u64, AppError> {
     let mut reader = BufReader::new(BzDecoder::new(
         File::open(archive).context("opening a bzip2 file")?,
     ));
@@ -132,17 +117,14 @@ fn extract_bzip(archive: &Path, dest: &Path) -> Result<(), AppError> {
             "opening destination"
         ))?;
     match std::io::copy(&mut reader, &mut dest_file) {
-        Ok(n) => {
-            println!("decompressed bytes: {}", n);
-            Ok(())
-        }
+        Ok(n) => Ok(n),
         Err(e) => Err(AppError::AnyHow(
             anyhow::Error::new(e).context("decompressing a bzip2 file"),
         )),
     }
 }
 
-fn extract_xz(archive: &Path, dest: &Path) -> Result<(), AppError> {
+fn extract_xz(archive: &Path, dest: &Path) -> Result<u64, AppError> {
     let mut reader = BufReader::new(XzDecoder::new(
         File::open(archive).context("opening an xz file")?,
     ));
@@ -157,17 +139,14 @@ fn extract_xz(archive: &Path, dest: &Path) -> Result<(), AppError> {
             "opening destination"
         ))?;
     match std::io::copy(&mut reader, &mut dest_file) {
-        Ok(n) => {
-            println!("decompressed bytes: {}", n);
-            Ok(())
-        }
+        Ok(n) => Ok(n),
         Err(e) => Err(AppError::AnyHow(
             anyhow::Error::new(e).context("decompressing an xz file"),
         )),
     }
 }
 
-fn extract_zip(archive: &Path, file_name: &str, dest: &Path) -> Result<(), AppError> {
+fn extract_zip(archive: &Path, file_name: &str, dest: &Path) -> Result<u64, AppError> {
     let mut zip = ZipArchive::new(File::open(archive).context("opening a zip file")?)
         .context("reading a zip file")?;
 
@@ -202,10 +181,7 @@ fn extract_zip(archive: &Path, file_name: &str, dest: &Path) -> Result<(), AppEr
             ))?;
 
         return match std::io::copy(&mut reader, &mut dest_file) {
-            Ok(n) => {
-                println!("decompressed bytes: {}", n);
-                Ok(())
-            }
+            Ok(n) => Ok(n),
             Err(e) => Err(AppError::AnyHow(
                 anyhow::Error::new(e).context("decompressing a zip file"),
             )),
@@ -219,13 +195,13 @@ fn extract_tar(
     tar_kind: TarKind,
     file_name: &str,
     dest: &Path,
-) -> Result<(), AppError> {
+) -> Result<u64, AppError> {
     // dbg!(&tar_kind);
     let tarball_path = match tar_kind {
         TarKind::GZip => {
             let uncompressed = archive.with_extension("");
             extract_gzip(archive, &uncompressed)?;
-            dbg!(&uncompressed);
+            // dbg!(&uncompressed);
             uncompressed
         }
         TarKind::BZip => {
@@ -250,7 +226,8 @@ fn extract_tar(
         let entry_path = entry.path().context("getting a tarball entry path")?;
         if entry_path.file_name().and_then(OsStr::to_str).unwrap() == file_name {
             entry.unpack(dest).context("unpacking a tarball entry")?;
-            return Ok(());
+            let bin_size = fs::metadata(dest).context("getting installed binary metadata")?.len();
+            return Ok(bin_size);
         }
     }
 

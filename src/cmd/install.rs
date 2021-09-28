@@ -10,10 +10,10 @@ use clap::{crate_name, ArgMatches};
 pub async fn install(matches: &ArgMatches) -> Result<()> {
     let repo = matches.value_of("repo").unwrap(); // required arg, safe to unwrap
     let mut pkg = Package::create(repo);
-    dbg!(&pkg);
+    // dbg!(&pkg);
     // let repo_name = (&pkg.repo.path()[1..]).to_lowercase();
     let repo_name = util::repo_name(&pkg.repo);
-    dbg!(&repo_name);
+    // dbg!(&repo_name);
     let cm = ConfigurationManager::with_clap_matches(matches)?;
 
     let mut packages = match cm.get_packages() {
@@ -43,7 +43,8 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
         println!("installing package: {}", &repo_name);
 
         gh.download(&mut pkg, &temp_dir).await?;
-        installer::install(&pkg, &cm.bin_dir, cm.strip).await?;
+        let bin_size = installer::install(&pkg, &cm.bin_dir, cm.strip).await?;
+        println!("size: {}", bytesize::to_string(bin_size, false));
         packages.insert(repo_name, pkg);
         cm.put_packages(&packages)?;
     }

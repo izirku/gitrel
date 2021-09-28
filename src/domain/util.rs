@@ -81,18 +81,15 @@ pub fn archive_kind(str: &str) -> ArchiveKind {
     }
 }
 
-// pub fn bin_name(repo_url: &Url) -> String {
-
-//     cfg_if::cfg_if! {
-//         if #[cfg(target_os="windows")] {
-//             // let file_name = format!("{}.exe", pkg.name.as_ref().unwrap()).as_str();
-//             let file_name = format!("{}.exe", util::repo_name(&pkg.repo));
-//         } else {
-//             let file_name = util::repo_name(&pkg.repo);
-//             // let file_name = pkg.name.as_ref().unwrap().as_str();
-//         }
-//     }
-// }
+pub fn bin_name(repo_url: &Url) -> String {
+    cfg_if::cfg_if! {
+        if #[cfg(target_os="windows")] {
+            format!("{}.exe", repo_name(repo_url))
+        } else {
+            repo_name(repo_url)
+        }
+    }
+}
 
 pub fn repo_name(repo_url: &Url) -> String {
     let (_, repo_name) = repo_url
