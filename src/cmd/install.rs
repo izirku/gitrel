@@ -40,39 +40,50 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
 
     let gh = GitHub::create(&client, cm.token.as_ref(), cm.gh_per_page, cm.gh_max_pages);
 
+    let pb = ProgressBar::new(u64::MAX);
+    pb.set_style(
+        ProgressStyle::default_bar()
+            // .template("{spinner:.green} {msg}\n[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+            // .progress_chars("#>-")
+            // .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+            .template("{spinner:.green} {msg}")
+            .progress_chars("##-"),
+    );
+    pb.set_message(format!("searching for {}", style(&repo_name).green()));
+
     if gh.find_match(&mut pkg, force_reinstall).await? {
-        let repo_name = util::repo_name(&pkg.repo);
+        // gh.download(&pb, &mut pkg, &temp_dir).await?;
+        pb.set_message(format!("downloading {}", style(&repo_name).green()));
+        gh.download(&mut pkg, &temp_dir).await?;
 
-        let pb = ProgressBar::new(100);
-        pb.set_style(
-            ProgressStyle::default_bar()
-                .template("{spinner:.green} {msg}\n[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
-                .progress_chars("#>-")
-        );
-
-        let msg = format!("downloading: {}", style(&repo_name).green());
-        pb.set_message(msg);
-        gh.download(&pb, &mut pkg, &temp_dir).await?;
-
-        let msg = format!("installing: {}", style(&repo_name).green());
+        // TODO: maybe keep the spinner active? some concurrency to think here about...
+        // pb.set_style(
+        //     ProgressStyle::default_bar()
+        //         .template("⌛ {msg}\n[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+        //         .progress_chars("#>-")
+        // );
+        let msg = format!("installing {}", style(&repo_name).green());
+        pb.enable_steady_tick(220);
         pb.set_message(msg);
         match installer::install(&pkg, &cm.bin_dir, cm.strip).await {
             Ok(bin_size) => {
                 let msg = format!(
-                    "{} installed: {} ({})",
+                    "{} installed {} ({})",
                     style('✓').green(),
                     style(&repo_name).green(),
                     bytesize::to_string(bin_size, false),
                 );
+                pb.disable_steady_tick();
                 pb.set_style(ProgressStyle::default_bar().template("{msg}"));
                 pb.finish_with_message(msg);
             }
             Err(e) => {
                 let msg = format!(
-                    "{} installed: {}",
+                    "{} not installed {}",
                     style('✗').red(),
                     style(&repo_name).red()
                 );
+                pb.disable_steady_tick();
                 pb.set_style(ProgressStyle::default_bar().template("{msg}"));
                 pb.finish_with_message(msg);
                 // TODO: proper error aggregation and reporting?

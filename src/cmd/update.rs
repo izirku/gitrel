@@ -42,7 +42,8 @@ pub async fn update(matches: &ArgMatches) -> Result<()> {
             if gh.find_match(pkg, false).await? {
                 println!("updating package: {}", &name);
 
-                gh.download(&pb, pkg, &temp_dir).await?;
+                // gh.download(&pb, pkg, &temp_dir).await?;
+                gh.download(pkg, &temp_dir).await?;
                 installer::install(pkg, &cm.bin_dir, cm.strip).await?;
                 needs_save = true;
             }
@@ -70,8 +71,8 @@ pub async fn update(matches: &ArgMatches) -> Result<()> {
         pkg.requested = requested;
 
         if gh.find_match(pkg, false).await? {
-            gh.download(&pb, pkg, &temp_dir).await?;
-            // gh.download(pkg, &temp_dir).await?;
+            // gh.download(&pb, pkg, &temp_dir).await?;
+            gh.download(pkg, &temp_dir).await?;
             installer::install(pkg, &cm.bin_dir, cm.strip).await?;
             needs_save = true;
         }

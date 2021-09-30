@@ -10,8 +10,9 @@ use super::package::{Package, PackageMatchKind};
 use super::util;
 use crate::AppError;
 use anyhow::Context;
+// use console::style;
 use futures_util::StreamExt;
-use indicatif::ProgressBar;
+use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::{header, Client, Method};
 use tempfile::TempDir;
 use tokio::fs::File;
@@ -221,12 +222,8 @@ impl<'a> GitHub<'a> {
         }
     }
 
-    pub async fn download(
-        &self,
-        pb: &ProgressBar,
-        pkg: &mut Package,
-        temp_dir: &TempDir,
-    ) -> Result<(), AppError> {
+    // pub async fn download( &self, pb: &ProgressBar, pkg: &mut Package, temp_dir: &TempDir,) -> Result<(), AppError> {
+    pub async fn download( &self, pkg: &mut Package, temp_dir: &TempDir,) -> Result<(), AppError> {
         use anyhow::anyhow;
         use reqwest::StatusCode;
         let req_url = format!(
@@ -252,9 +249,21 @@ impl<'a> GitHub<'a> {
             }
             return Err(AppError::AnyHow(anyhow!(msg)));
         }
-
         let tot_size = resp.content_length().context("getting content length")?;
-        pb.set_length(tot_size);
+
+        let pb = ProgressBar::new(tot_size);
+        pb.set_style(
+            ProgressStyle::default_bar()
+                // .template("{spinner:.green} {msg}\n[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+                // .progress_chars("#>-")
+                .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+                // .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+                .progress_chars("##-")
+        );
+        // let repo_name = util::repo_name(&pkg.repo);
+        // let msg = format!("downloading: {}", style(&repo_name).green());
+        // pb.set_message(msg);
+        // pb.set_message("Downloading");
 
         let mut downloaded: u64 = 0;
         let mut stream = resp.bytes_stream();
@@ -277,6 +286,12 @@ impl<'a> GitHub<'a> {
             downloaded = new;
             pb.set_position(new);
         }
+
+        // pb.finish_with_message(msg);
+        pb.finish_and_clear();
+        // dbg!(tot_size);
+        // dbg!(downloaded);
+        // pb.set_position(tot_size);
 
         pkg.asset_path = Some(temp_file_name);
         Ok(())
