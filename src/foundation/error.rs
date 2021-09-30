@@ -6,6 +6,10 @@ pub enum AppError {
     MultipleResults,
     #[error("unknown method of mathing requested release")]
     UnknownMatchKind,
+    #[error("not all requested binaries were installed")]
+    PartialInstall,
+    #[error("operation failed")]
+    OperationFailed,
     #[error(transparent)]
     AnyHow(#[from] anyhow::Error), // source and Display delegate to anyhow::Error
                                    // #[error(transparent)]
