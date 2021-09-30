@@ -2,22 +2,21 @@ mod asset;
 mod release;
 mod response;
 
-use std::cmp;
-
 use self::release::Release;
 use self::response::GithubResponse;
 use super::package::{Package, PackageMatchKind};
 use super::util;
-use crate::AppError;
-use anyhow::Context;
-// use console::style;
+use anyhow::{anyhow, Context, Result};
 use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::{header, Client, Method};
+use std::cmp;
 use tempfile::TempDir;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+// use console::style;
 // use tokio::io::{self, AsyncWriteExt};
+// use crate::AppError;
 
 pub struct GitHub<'a> {
     client: &'a Client,
@@ -79,7 +78,9 @@ impl<'a> GitHub<'a> {
     //     self
     // }
 
-    pub async fn find_match(&self, pkg: &mut Package, force: bool) -> Result<bool, AppError> {
+    /// Find a release and suitable asset for a provided `pkg`.
+    /// Returns `true` if found, otherwise `false`.
+    pub async fn find_match(&self, pkg: &mut Package, force: bool) -> Result<bool> {
         let resp = match pkg.match_kind() {
             PackageMatchKind::Latest => {
                 let req_url = format!(
@@ -100,7 +101,7 @@ impl<'a> GitHub<'a> {
             PackageMatchKind::SemVer => self.find_release(pkg).await,
         };
         match resp {
-            Ok(mut release) => {
+            Ok(Some(mut release)) => {
                 // dbg!(&release);
 
                 // Under normal circumstances, i.e, when not forcing a re-install,
@@ -124,24 +125,24 @@ impl<'a> GitHub<'a> {
                 pkg.asset_name = Some(asset.name);
                 Ok(true)
             }
-            Err(AppError::NotFound) => Ok(false),
+            Ok(None) => Ok(false),
             Err(e) => Err(e),
         }
     }
 
-    async fn get_exact_release(&self, req_url: &str) -> Result<Release, AppError> {
+    async fn get_exact_release(&self, req_url: &str) -> Result<Option<Release>> {
         let resp = self
             .client
             .get(req_url)
             .headers(self.api_headers.clone())
             .send()
             .await
-            .context("fething latest release")?;
+            .context("fetching latest release")?;
 
         // dbg!(&resp);
         // dbg!(&resp.status());
         if resp.status().as_u16() == 404 {
-            return Err(AppError::NotFound);
+            return Ok(None);
         }
 
         let resp = resp
@@ -155,19 +156,16 @@ impl<'a> GitHub<'a> {
                     && util::archive_kind(&asset.name) != util::ArchiveKind::Unsupported
             });
             match release.assets.len() {
-                1 => Ok(release),
-                0 => Err(AppError::NotFound),
-                _ => {
-                    dbg!(&release);
-                    Err(AppError::MultipleResults)
-                }
+                1 => Ok(Some(release)),
+                0 => Ok(None),
+                _ => Err(anyhow!("multiple assets matched the filter, consider filing a bug report stating which repo it failed on")),
             }
         } else {
-            Err(AppError::NotFound)
+            Ok(None)
         }
     }
 
-    async fn find_release(&self, pkg: &Package) -> Result<Release, AppError> {
+    async fn find_release(&self, pkg: &Package) -> Result<Option<Release>> {
         let req_url = format!(
             "https://api.github.com/repos{}/releases?per_page={}",
             &pkg.repo.path(),
@@ -191,7 +189,7 @@ impl<'a> GitHub<'a> {
             dbg!(resp.status());
 
             if resp.status().as_u16() != 200 {
-                return Err(AppError::NotFound);
+                return Ok(None);
             }
 
             let releases: Vec<GithubResponse<Release>> =
@@ -210,21 +208,21 @@ impl<'a> GitHub<'a> {
                             && util::archive_kind(&asset.name) != util::ArchiveKind::Unsupported
                     });
                     if release.assets.len() == 1 {
-                        break 'outer Ok(release);
+                        break 'outer Ok(Some(release));
                     }
                 }
             }
 
             curr_page += 1;
             if curr_page > self.max_pages {
-                break Err(AppError::NotFound);
+                // break Err(AppError::NotFound);
+                break Ok(None);
             }
         }
     }
 
     // pub async fn download( &self, pb: &ProgressBar, pkg: &mut Package, temp_dir: &TempDir,) -> Result<(), AppError> {
-    pub async fn download( &self, pkg: &mut Package, temp_dir: &TempDir,) -> Result<(), AppError> {
-        use anyhow::anyhow;
+    pub async fn download(&self, pkg: &mut Package, temp_dir: &TempDir) -> Result<()> {
         use reqwest::StatusCode;
         let req_url = format!(
             "https://api.github.com/repos{}/releases/assets/{}",
@@ -241,13 +239,12 @@ impl<'a> GitHub<'a> {
             .context("fething an asset")?;
 
         if resp.status() != StatusCode::OK {
-            dbg!(&resp);
             let mut msg = format!("getting: {}", &req_url);
             if let Ok(txt) = resp.text().await {
                 msg.push('\n');
                 msg.push_str(&txt);
             }
-            return Err(AppError::AnyHow(anyhow!(msg)));
+            return Err(anyhow!(msg));
         }
         let tot_size = resp.content_length().context("getting content length")?;
 

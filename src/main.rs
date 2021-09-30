@@ -2,13 +2,9 @@ mod cmd;
 mod domain;
 mod foundation;
 
-// use anyhow::Result;
-// use crate::business::conf::ConfigurationManager;
-use crate::foundation::error::AppError;
+use anyhow::Result;
 use clap::{crate_version, load_yaml, App};
 use std::future::Future;
-
-pub type Result<T, E = AppError> = core::result::Result<T, E>;
 
 fn main() -> Result<()> {
     let yaml = load_yaml!("cli.yaml");

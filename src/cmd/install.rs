@@ -3,7 +3,7 @@ use crate::domain::github::GitHub;
 use crate::domain::installer;
 use crate::domain::package::{Package, PackageMap};
 use crate::domain::util;
-use crate::{AppError, Result};
+use anyhow::{anyhow, Result};
 use clap::{crate_name, ArgMatches};
 use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -19,8 +19,8 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
     let cm = ConfigurationManager::with_clap_matches(matches)?;
 
     let mut packages = match cm.get_packages() {
-        Ok(packages) => packages,
-        Err(AppError::NotFound) => PackageMap::new(),
+        Ok(Some(packages)) => packages,
+        Ok(None) => PackageMap::new(),
         Err(e) => return Err(e),
     };
 
@@ -79,7 +79,7 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
                     }
                     Err(e) => {
                         message_fail(&pb, &repo_name, "not installed");
-                        errors.push(e);
+                        errors.push(e.context(repo_name));
                     }
                 }
             }
@@ -88,24 +88,23 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
             }
             Err(e) => {
                 message_fail(&pb, &repo_name, "not installed");
-                errors.push(e);
+                errors.push(e.context(repo_name));
             }
         }
     }
 
-    // TODO: sort out err handling app wide
     if errors.is_empty() {
         Ok(())
     } else {
-        println!("\nsome errors has occurred during the installation:\n");
+        println!("\nsome errors has occurred during the installation\n");
         for e in errors.iter() {
-            println!("{}\n", e);
+            eprintln!("{:?}\n", e);
         }
 
         if installed > 0 {
-            Err(AppError::PartialInstall)
+            Err(anyhow!("partial success"))
         } else {
-            Err(AppError::OperationFailed)
+            Err(anyhow!("operation failed"))
         }
     }
 }

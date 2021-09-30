@@ -1,5 +1,5 @@
 use crate::domain::conf::ConfigurationManager;
-use crate::{AppError, Result};
+use anyhow::Result;
 use clap::ArgMatches;
 use console::style;
 use tabled::{style::Line, Alignment, Column, Format, Modify, Object, Row, Style, Table, Tabled};
@@ -20,8 +20,8 @@ struct ListLine<'a> {
 pub fn list(matches: &ArgMatches) -> Result<()> {
     let cm = ConfigurationManager::with_clap_matches(matches)?;
     let packages = match cm.get_packages() {
-        Ok(packages) => packages,
-        Err(AppError::NotFound) => {
+        Ok(Some(packages)) => packages,
+        Ok(None) => {
             println!("nothing is installed on this system");
             return Ok(());
         }

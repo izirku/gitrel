@@ -1,7 +1,6 @@
 use super::package::Package;
 use super::util::{self, ArchiveKind, TarKind};
-use crate::{AppError, Result};
-use anyhow::Context;
+use anyhow::{anyhow, Context, Result};
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use std::ffi::OsStr;
@@ -18,7 +17,7 @@ use zip::ZipArchive;
 // use tokio::fs::File;
 // use tokio::io::{self, AsyncWriteExt};
 
-pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<u64, AppError> {
+pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<u64> {
     let file_name = util::bin_name(&pkg.repo);
     let archive_path = pkg.asset_path.as_ref().unwrap().as_path();
     let dest = bin_dir.join(&file_name);
@@ -47,9 +46,7 @@ pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<u64, 
 
             match std::io::copy(&mut reader, &mut dest_file) {
                 Ok(n) => Ok(n),
-                Err(e) => Err(AppError::AnyHow(
-                    anyhow::Error::new(e).context("installing an uncompressed binary"),
-                )),
+                Err(_e) => Err(anyhow!("installing an uncompressed binary")),
             }
         }
         ArchiveKind::Unsupported => unreachable!(),
@@ -69,9 +66,7 @@ pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<u64, 
                         Ok(bin_size)
                     }
                 },
-                Err(e) => Err(AppError::AnyHow(
-                    anyhow::Error::new(e).context("setting the executable bit"),
-                )),
+                Err(_e) => Err(anyhow!("setting the executable bit")),
             }
         } else {
             Ok(bin_size)
@@ -80,7 +75,7 @@ pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<u64, 
 }
 
 // TODO: maybe use flate2's tokio stuff?
-fn extract_gzip(archive: &Path, dest: &Path) -> Result<u64, AppError> {
+fn extract_gzip(archive: &Path, dest: &Path) -> Result<u64> {
     let mut reader = BufReader::new(GzDecoder::new(
         File::open(archive).context("opening a gzip file")?,
     ));
@@ -96,13 +91,11 @@ fn extract_gzip(archive: &Path, dest: &Path) -> Result<u64, AppError> {
         ))?;
     match std::io::copy(&mut reader, &mut dest_file) {
         Ok(n) => Ok(n),
-        Err(e) => Err(AppError::AnyHow(
-            anyhow::Error::new(e).context("decompressing a gzip file"),
-        )),
+        Err(_e) => Err(anyhow!("decompressing a gzip file")),
     }
 }
 
-fn extract_bzip(archive: &Path, dest: &Path) -> Result<u64, AppError> {
+fn extract_bzip(archive: &Path, dest: &Path) -> Result<u64> {
     let mut reader = BufReader::new(BzDecoder::new(
         File::open(archive).context("opening a bzip2 file")?,
     ));
@@ -118,13 +111,11 @@ fn extract_bzip(archive: &Path, dest: &Path) -> Result<u64, AppError> {
         ))?;
     match std::io::copy(&mut reader, &mut dest_file) {
         Ok(n) => Ok(n),
-        Err(e) => Err(AppError::AnyHow(
-            anyhow::Error::new(e).context("decompressing a bzip2 file"),
-        )),
+        Err(_e) => Err(anyhow!("decompressing a bzip2 file")),
     }
 }
 
-fn extract_xz(archive: &Path, dest: &Path) -> Result<u64, AppError> {
+fn extract_xz(archive: &Path, dest: &Path) -> Result<u64> {
     let mut reader = BufReader::new(XzDecoder::new(
         File::open(archive).context("opening an xz file")?,
     ));
@@ -140,13 +131,11 @@ fn extract_xz(archive: &Path, dest: &Path) -> Result<u64, AppError> {
         ))?;
     match std::io::copy(&mut reader, &mut dest_file) {
         Ok(n) => Ok(n),
-        Err(e) => Err(AppError::AnyHow(
-            anyhow::Error::new(e).context("decompressing an xz file"),
-        )),
+        Err(_e) => Err(anyhow!("decompressing an xz file")),
     }
 }
 
-fn extract_zip(archive: &Path, file_name: &str, dest: &Path) -> Result<u64, AppError> {
+fn extract_zip(archive: &Path, file_name: &str, dest: &Path) -> Result<u64> {
     let mut zip = ZipArchive::new(File::open(archive).context("opening a zip file")?)
         .context("reading a zip file")?;
 
@@ -182,20 +171,16 @@ fn extract_zip(archive: &Path, file_name: &str, dest: &Path) -> Result<u64, AppE
 
         return match std::io::copy(&mut reader, &mut dest_file) {
             Ok(n) => Ok(n),
-            Err(e) => Err(AppError::AnyHow(
-                anyhow::Error::new(e).context("decompressing a zip file"),
-            )),
+            Err(_e) => Err(anyhow!("decompressing a zip file")),
         };
     }
-    Err(AppError::NotFound)
+    Err(anyhow!(format!(
+        "binary `{}` not found inside the zip archive",
+        file_name
+    )))
 }
 
-fn extract_tar(
-    archive: &Path,
-    tar_kind: TarKind,
-    file_name: &str,
-    dest: &Path,
-) -> Result<u64, AppError> {
+fn extract_tar(archive: &Path, tar_kind: TarKind, file_name: &str, dest: &Path) -> Result<u64> {
     // dbg!(&tar_kind);
     let tarball_path = match tar_kind {
         TarKind::GZip => {
@@ -233,5 +218,8 @@ fn extract_tar(
         }
     }
 
-    Err(AppError::NotFound)
+    Err(anyhow!(format!(
+        "binary `{}` not found inside the tarball",
+        file_name
+    )))
 }

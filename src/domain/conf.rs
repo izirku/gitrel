@@ -1,6 +1,5 @@
 use super::package::PackageMap;
-use crate::AppError;
-use anyhow::Context;
+use anyhow::{anyhow, Context, Result};
 use clap::{crate_name, ArgMatches};
 use directories::{BaseDirs, ProjectDirs};
 use serde::{Deserialize, Serialize};
@@ -51,7 +50,7 @@ pub struct ConfigurationManager {
 }
 
 impl ConfigurationManager {
-    pub fn with_clap_matches(matches: &ArgMatches) -> Result<Self, AppError> {
+    pub fn with_clap_matches(matches: &ArgMatches) -> Result<Self> {
         let base_dirs = BaseDirs::new().unwrap();
         let bin_dir = base_dirs.executable_dir().unwrap().to_path_buf();
 
@@ -86,20 +85,21 @@ impl ConfigurationManager {
         })
     }
 
-    pub fn get_packages(&self) -> Result<PackageMap, AppError> {
+    pub fn get_packages(&self) -> Result<Option<PackageMap>> {
         match fs::read_to_string(self.packages.as_path()) {
-            Ok(contents) => toml::from_str::<PackageMap>(&contents)
-                .context(format!("malformed ackages TOML file: {:?}", self.packages))
-                .map_err(AppError::AnyHow),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(AppError::NotFound),
-            Err(e) => Err(AppError::AnyHow(
-                anyhow::Error::new(e)
-                    .context(format!("unable to read ackages file: {:?}", self.packages)),
+            Ok(contents) => Ok(Some(
+                toml::from_str::<PackageMap>(&contents)
+                    .context(format!("malformed packages TOML file: {:?}", self.packages))?,
             )),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(_e) => Err(anyhow!(format!(
+                "unable to read packages file: {:?}",
+                self.packages
+            ))),
         }
     }
 
-    pub fn put_packages(&self, packages: &PackageMap) -> Result<(), AppError> {
+    pub fn put_packages(&self, packages: &PackageMap) -> Result<()> {
         fs::write(
             self.packages.as_path(),
             toml::to_string(packages).context("parsing to toml")?,
@@ -109,11 +109,10 @@ impl ConfigurationManager {
     }
 }
 
-fn get_or_create_cofig_file(path: &Path) -> Result<ConfigFile, AppError> {
+fn get_or_create_cofig_file(path: &Path) -> Result<ConfigFile> {
     match fs::read_to_string(&path) {
-        Ok(config) => toml::from_str(&config)
-            .with_context(|| format!("reading config: {:?}", path))
-            .map_err(AppError::AnyHow),
+        // Ok(config) => Ok(toml::from_str(&config).context(format!("reading config: {:?}", path))?),
+        Ok(config) => toml::from_str(&config).context(format!("reading config: {:?}", path)),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             let config = ConfigFile {
                 gitrel: Gitrel {
@@ -132,9 +131,7 @@ fn get_or_create_cofig_file(path: &Path) -> Result<ConfigFile, AppError> {
                 .context("writing toml")?;
             Ok(config)
         }
-        Err(e) => Err(AppError::AnyHow(
-            anyhow::Error::new(e).context(format!("unable to read config file: {:?}", path)),
-        )),
+        Err(_e) => Err(anyhow!("unable to read config file: {:?}", path)),
     }
 }
 
@@ -148,16 +145,13 @@ fn gh_token_from_file(path: &Path) -> Option<String> {
     }
 }
 
-fn ensure_gitignore(path: &Path) -> Result<(), AppError> {
+fn ensure_gitignore(path: &Path) -> Result<()> {
     match File::open(path) {
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
             fs::write(path, "github_token.plain")
                 .context(format!("unable to create file: {:?}", path))
-                .map_err(AppError::AnyHow)
         }
-        Err(e) => Err(AppError::AnyHow(
-            anyhow::Error::new(e).context(format!("unable to access file: {:?}", path)),
-        )),
+        Err(_e) => Err(anyhow!("unable to access file: {:?}", path)),
         _ => Ok(()),
     }
 }

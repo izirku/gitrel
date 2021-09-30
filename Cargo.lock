@@ -444,7 +444,6 @@ dependencies = [
  "tabled",
  "tar",
  "tempfile",
- "thiserror",
  "tokio",
  "toml",
  "url",

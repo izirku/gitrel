@@ -1,8 +1,7 @@
 use crate::domain::util::parse_gh_repo_spec;
 use crate::domain::{conf::ConfigurationManager, github::GitHub};
 use crate::domain::{installer, util};
-use crate::{AppError, Result};
-use anyhow::Context;
+use anyhow::{Context, Result};
 use clap::{crate_name, ArgMatches};
 use indicatif::{ProgressBar, ProgressStyle};
 
@@ -11,8 +10,8 @@ pub async fn update(matches: &ArgMatches) -> Result<()> {
     let cm = ConfigurationManager::with_clap_matches(matches)?;
 
     let mut packages = match cm.get_packages() {
-        Ok(packages) => packages,
-        Err(AppError::NotFound) => {
+        Ok(Some(packages)) => packages,
+        Ok(None) => {
             println!(
                 "No managed installationts on this system. Use `{} install  repo@[*|name|semver]` to install a package",
                 crate_name!(),
