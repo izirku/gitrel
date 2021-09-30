@@ -94,14 +94,20 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
     }
 
     // TODO: sort out err handling app wide
-    // if errors.is_empty() {
-    //     Ok(())
-    // } else if installed > 0 {
-    //     Err(AppError::PartialInstall)
-    // } else {
-    //     Err(AppError::OperationFailed)
-    // }
-    Ok(())
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        println!("\nsome errors has occurred during the installation:\n");
+        for e in errors.iter() {
+            println!("{}\n", e);
+        }
+
+        if installed > 0 {
+            Err(AppError::PartialInstall)
+        } else {
+            Err(AppError::OperationFailed)
+        }
+    }
 }
 
 fn message_fail(pb: &ProgressBar, repo_name: &str, msg: &str) {
