@@ -14,6 +14,7 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
     let force_reinstall = matches.is_present("force");
     // let repos = matches.values_of("repo").unwrap();
     let repos: Vec<&str> = matches.values_of("repo").unwrap().collect();
+    let requested_ct = repos.len();
     let mut errors = Vec::with_capacity(repos.len());
 
     let cm = ConfigurationManager::with_clap_matches(matches)?;
@@ -93,10 +94,12 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
         }
     }
 
+    println!("\nInstalled {} of {} requested binaries.", installed, requested_ct);
+
     if errors.is_empty() {
         Ok(())
     } else {
-        println!("\nsome errors has occurred during the installation\n");
+        println!("\nsome errors has occurred during the installation:\n");
         for e in errors.iter() {
             eprintln!("{:?}\n", e);
         }

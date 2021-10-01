@@ -2,6 +2,7 @@ name: gitrel
 # version: comes from `Cargo.toml`
 author: Evgenii Grigorev <zjekadev@gmail.com>
 about: Install and manage binaries via GitHub releases
+setting: ArgRequiredElseHelp
 args:
   - token:
       about: GitHub API token
@@ -17,6 +18,7 @@ args:
       about: Sets the level of verbosity
 subcommands:
   - install:
+      setting: ArgRequiredElseHelp
       about: install binaries
       args:
         - repo:
@@ -42,6 +44,7 @@ subcommands:
             short: s
             long: strip
   - update:
+      setting: ArgRequiredElseHelp
       about: update binaries
       alias: upgrade
       args:
