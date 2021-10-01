@@ -51,7 +51,26 @@ pub struct ConfigurationManager {
 
 impl ConfigurationManager {
     pub fn with_clap_matches(matches: &ArgMatches) -> Result<Self> {
-        let bin_dir = BaseDirs::new().unwrap().executable_dir().unwrap().to_path_buf();
+        cfg_if::cfg_if! {
+            // on macos, `executable_dir()` returns None...
+            // if #[cfg(target_os="macos")] {
+            if #[cfg(target_family = "unix")] {
+                let bin_dir = BaseDirs::new().unwrap();
+                let bin_dir = bin_dir.home_dir();
+                let bin_dir = if bin_dir.join(".local/bin/").exists() {
+                    bin_dir.join(".local/bin/")
+                } else if bin_dir.join("bin/").exists() {
+                    bin_dir.join("bin/")
+                } else {
+                    // PathBuf::from_str("/usr/local/bin/").unwrap()
+                    return Err(anyhow!("no `~/.local/bin` or `~/bin` directory exists"));
+                };
+            } else {
+                unimplemented!();
+                // let bin_dir = BaseDirs::new().unwrap().executable_dir().unwrap().to_path_buf();
+            }
+        }
+        dbg!(&bin_dir);
 
         let proj_dirs = ProjectDirs::from("com.github", "izirku", crate_name!()).unwrap();
         let cfg_dir = proj_dirs.config_dir();

@@ -21,7 +21,7 @@ gitrel update --all
 
 - [ ] implement `uninstall`
 - [ ] implement `install --ensure`
-- [ ] fix binary directory resolution on mac/win
+- [ ] fix binary directory resolution on win
 
 ## Future Ideas and Improvements
 

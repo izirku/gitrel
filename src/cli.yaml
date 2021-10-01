@@ -34,7 +34,7 @@ subcommands:
             about: force [re]install
             short: f
             long: force
-            conflicts_with: ensure
+            # conflicts_with: ensure
         # - ensure:
         #     about: install missing
         #     short: e
