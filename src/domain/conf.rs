@@ -51,8 +51,7 @@ pub struct ConfigurationManager {
 
 impl ConfigurationManager {
     pub fn with_clap_matches(matches: &ArgMatches) -> Result<Self> {
-        let base_dirs = BaseDirs::new().unwrap();
-        let bin_dir = base_dirs.executable_dir().unwrap().to_path_buf();
+        let bin_dir = BaseDirs::new().unwrap().executable_dir().unwrap().to_path_buf();
 
         let proj_dirs = ProjectDirs::from("com.github", "izirku", crate_name!()).unwrap();
         let cfg_dir = proj_dirs.config_dir();
