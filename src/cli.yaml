@@ -11,11 +11,11 @@ args:
       takes_value: true
       hide_env_values: true
       env: GITREL_TOKEN
-  - verbose:
-      short: v
-      takes_value: true
-      multiple_values: true
-      about: Sets the level of verbosity
+  # - verbose:
+  #     short: v
+  #     takes_value: true
+  #     multiple_values: true
+  #     about: Sets the level of verbosity
 subcommands:
   - install:
       setting: ArgRequiredElseHelp
@@ -35,14 +35,14 @@ subcommands:
             short: f
             long: force
             conflicts_with: ensure
-        - ensure:
-            about: install missing
-            short: e
-            long: ensure
-        - strip:
-            about: minimize by using `strip`
-            short: s
-            long: strip
+        # - ensure:
+        #     about: install missing
+        #     short: e
+        #     long: ensure
+        # - strip:
+        #     about: minimize by using `strip`
+        #     short: s
+        #     long: strip
   - update:
       setting: ArgRequiredElseHelp
       about: update binaries
@@ -61,14 +61,14 @@ subcommands:
             about: minimize by using `strip`
             short: s
             long: strip
-  - uninstall:
-      about: uninstall binaries
-      alias: remove
-      args:
-        - name:
-            about: binary name(s)
-            takes_value: true
-            multiple_values: true
+  # - uninstall:
+  #     about: uninstall binaries
+  #     alias: remove
+  #     args:
+  #       - name:
+  #           about: binary name(s)
+  #           takes_value: true
+  #           multiple_values: true
   - list:
       about: list installed binaries
   - info:

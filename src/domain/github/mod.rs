@@ -14,9 +14,6 @@ use std::cmp;
 use tempfile::TempDir;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
-// use console::style;
-// use tokio::io::{self, AsyncWriteExt};
-// use crate::AppError;
 
 pub struct GitHub<'a> {
     client: &'a Client,
@@ -54,15 +51,18 @@ impl<'a> GitHub<'a> {
         );
 
         if let Some(token) = token {
+            let token = format!("token {}", token);
+
             api_headers.insert(
                 header::AUTHORIZATION,
-                header::HeaderValue::from_str(token).unwrap(),
+                header::HeaderValue::from_str(&token).unwrap(),
             );
             dl_headers.insert(
                 header::AUTHORIZATION,
-                header::HeaderValue::from_str(token).unwrap(),
+                header::HeaderValue::from_str(&token).unwrap(),
             );
         }
+        // dbg!(&api_headers);
 
         Self {
             client,
@@ -150,6 +150,8 @@ impl<'a> GitHub<'a> {
             .await
             .context("parsing latest release response body")?;
 
+        // dbg!(&resp);
+
         if let GithubResponse::Ok(mut release) = resp {
             release.assets.retain(|asset| {
                 util::matches_target(&asset.name)
@@ -175,7 +177,7 @@ impl<'a> GitHub<'a> {
         let mut curr_page = 1;
 
         'outer: loop {
-            dbg!(curr_page);
+            // dbg!(curr_page);
 
             let resp = self
                 .client
@@ -186,7 +188,7 @@ impl<'a> GitHub<'a> {
                 .await
                 .context("fething next page")?;
 
-            dbg!(resp.status());
+            // dbg!(resp.status());
 
             if resp.status().as_u16() != 200 {
                 return Ok(None);
