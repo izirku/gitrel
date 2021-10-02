@@ -1,7 +1,7 @@
 use super::package::PackageMap;
 use anyhow::{anyhow, Context, Result};
-use clap::{crate_name, ArgMatches};
-use directories::{BaseDirs, ProjectDirs};
+use clap::ArgMatches;
+use directories::BaseDirs;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
@@ -22,15 +22,6 @@ struct Gitrel {
     #[serde(default)]
     strip_execs: bool,
 }
-
-// #[cfg(target_os = "windows")]
-// #[derive(Debug, Deserialize, Serialize)]
-// struct Gitrel {
-//     // maybe allow "cross-targeting" later
-// // targes_os: Option<String>,
-// // target_arch: Option<String>,
-// // target_env: Option<String>,
-// }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Pagination {
@@ -60,34 +51,28 @@ pub struct ConfigurationManager {
 
 impl ConfigurationManager {
     pub fn with_clap_matches(matches: &ArgMatches) -> Result<Self> {
-        let base_dir = BaseDirs::new().unwrap();
-        cfg_if::cfg_if! {
-            // on macos, `executable_dir()` returns None...
-            // if #[cfg(target_os="macos")] {
-            if #[cfg(target_family = "unix")] {
-                let bin_dir = base_dir.home_dir();
-                let bin_dir = if bin_dir.join(".local/bin/").exists() {
-                    bin_dir.join(".local/bin/")
-                } else if bin_dir.join("bin/").exists() {
-                    bin_dir.join("bin/")
-                } else {
-                    // PathBuf::from_str("/usr/local/bin/").unwrap()
-                    return Err(anyhow!("no `~/.local/bin` or `~/bin` directory exists"));
-                };
-            } else {
-                // TODO: Think of a better bin dir handling for windows
-                let bin_dir = base_dir.home_dir().join("gitrel\\bin\\");
-                if !bin_dir.exists() {
-                    fs::create_dir_all(bin_dir.as_path())?;
-                }
-            }
-        }
-        // dbg!(&bin_dir);
+        let base_dirs =
+            BaseDirs::new().ok_or_else(|| anyhow!("unable to get usable `base dir`"))?;
+        let home_dir = base_dirs.home_dir();
 
-        let proj_dirs = ProjectDirs::from("com.github", "izirku", crate_name!()).unwrap();
-        let cfg_dir = proj_dirs.config_dir();
-        fs::create_dir_all(cfg_dir)
-            .with_context(|| format!("unable to create config dir: {:?}", cfg_dir))?;
+        // if exists, prefer ~/.local/bin over ~/bin,
+        // if DNE, create ~/.local/bin
+        // (note: do it on all systems, even windows)
+        let bin_dir = if home_dir.join(".local/bin/").exists() {
+            home_dir.join(".local/bin/")
+        } else if home_dir.join("bin/").exists() {
+            home_dir.join("bin/")
+        } else {
+            let tmp = home_dir.join(".local/bin/");
+            fs::create_dir_all(tmp.as_path()).context("create `~/.local/bin`")?;
+            tmp
+        };
+
+        // let proj_dirs = ProjectDirs::from("com.github", "izirku", crate_name!()).unwrap();
+        // let cfg_dir = proj_dirs.config_dir();
+        let cfg_dir = home_dir.join(".config/gitrel/");
+        fs::create_dir_all(cfg_dir.as_path())
+            .with_context(|| format!("unable to create config dir: {:?}", cfg_dir.as_path()))?;
 
         let config_file = cfg_dir.join("config.toml");
         let gh_token_file = cfg_dir.join("github_token.plain");
