@@ -94,7 +94,10 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
         }
     }
 
-    println!("\nInstalled {} of {} requested binaries.", installed, requested_ct);
+    println!(
+        "\nInstalled {} of {} requested binaries.",
+        installed, requested_ct
+    );
 
     if errors.is_empty() {
         Ok(())

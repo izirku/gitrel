@@ -105,7 +105,11 @@ pub async fn update(matches: &ArgMatches) -> Result<()> {
         cm.put_packages(&pkgs_installed)?;
     }
 
-    println!("\nUpdated {} of {} binaries.", updated, pkgs_installed.len());
+    println!(
+        "\nUpdated {} of {} binaries.",
+        updated,
+        pkgs_installed.len()
+    );
 
     if errors.is_empty() {
         Ok(())

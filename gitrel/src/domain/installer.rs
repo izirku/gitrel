@@ -5,7 +5,7 @@ use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
-use std::io::BufReader;
+use std::io::{BufReader, Write};
 use std::path::Path;
 #[cfg(target_family = "unix")]
 use std::{
