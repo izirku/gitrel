@@ -5,7 +5,7 @@ use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
-use std::io::{BufReader, Write};
+use std::io::BufReader;
 use std::path::Path;
 #[cfg(target_family = "unix")]
 use std::{
@@ -52,26 +52,49 @@ pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<u64> 
         ArchiveKind::Unsupported => unreachable!(),
     }?;
 
-    cfg_if::cfg_if! {
-        if #[cfg(target_family = "unix")] {
-            match set_permissions(dest, Permissions::from_mode(0o755)) {
-                Ok(_) => {
-                    if strip {
+    #[allow(clippy::if_same_then_else)]
+    #[allow(clippy::branches_sharing_code)]
+    if strip {
+        cfg_if::cfg_if! {
+            if #[cfg(target_family = "unix")] {
+                match set_permissions(dest, Permissions::from_mode(0o755)) {
+                    Ok(_) => {
                         let output = std::process::Command::new("strip").arg(dest).output().context("stripping the executable")?;
                         std::io::stdout().write_all(&output.stdout).context("writing to stdout")?;
                         std::io::stderr().write_all(&output.stderr).context("writing to stderr")?;
                         let bin_size = fs::metadata(dest).context("getting installed binary metadata")?.len();
                         Ok(bin_size)
-                    } else {
-                        Ok(bin_size)
-                    }
-                },
-                Err(_e) => Err(anyhow!("setting the executable bit")),
+                    },
+                    Err(_e) => Err(anyhow!("setting the executable bit")),
+                }
+            } else {
+                Ok(bin_size)
             }
-        } else {
-            Ok(bin_size)
         }
+    } else {
+        Ok(bin_size)
     }
+
+    // cfg_if::cfg_if! {
+    //     if #[cfg(target_family = "unix")] {
+    //         match set_permissions(dest, Permissions::from_mode(0o755)) {
+    //             Ok(_) => {
+    //                 if strip {
+    //                     let output = std::process::Command::new("strip").arg(dest).output().context("stripping the executable")?;
+    //                     std::io::stdout().write_all(&output.stdout).context("writing to stdout")?;
+    //                     std::io::stderr().write_all(&output.stderr).context("writing to stderr")?;
+    //                     let bin_size = fs::metadata(dest).context("getting installed binary metadata")?.len();
+    //                     Ok(bin_size)
+    //                 } else {
+    //                     Ok(bin_size)
+    //                 }
+    //             },
+    //             Err(_e) => Err(anyhow!("setting the executable bit")),
+    //         }
+    //     } else {
+    //         Ok(bin_size)
+    //     }
+    // }
 }
 
 // TODO: maybe use flate2's tokio stuff?

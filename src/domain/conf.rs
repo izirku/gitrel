@@ -23,6 +23,15 @@ struct Gitrel {
     strip_execs: bool,
 }
 
+// #[cfg(target_os = "windows")]
+// #[derive(Debug, Deserialize, Serialize)]
+// struct Gitrel {
+//     // maybe allow "cross-targeting" later
+// // targes_os: Option<String>,
+// // target_arch: Option<String>,
+// // target_env: Option<String>,
+// }
+
 #[derive(Debug, Deserialize, Serialize)]
 struct Pagination {
     #[serde(default = "gh_per_page_default")]
@@ -51,12 +60,12 @@ pub struct ConfigurationManager {
 
 impl ConfigurationManager {
     pub fn with_clap_matches(matches: &ArgMatches) -> Result<Self> {
+        let base_dir = BaseDirs::new().unwrap();
         cfg_if::cfg_if! {
             // on macos, `executable_dir()` returns None...
             // if #[cfg(target_os="macos")] {
             if #[cfg(target_family = "unix")] {
-                let bin_dir = BaseDirs::new().unwrap();
-                let bin_dir = bin_dir.home_dir();
+                let bin_dir = base_dir.home_dir();
                 let bin_dir = if bin_dir.join(".local/bin/").exists() {
                     bin_dir.join(".local/bin/")
                 } else if bin_dir.join("bin/").exists() {
@@ -66,11 +75,14 @@ impl ConfigurationManager {
                     return Err(anyhow!("no `~/.local/bin` or `~/bin` directory exists"));
                 };
             } else {
-                unimplemented!();
-                // let bin_dir = BaseDirs::new().unwrap().executable_dir().unwrap().to_path_buf();
+                // TODO: Think of a better bin dir handling for windows
+                let bin_dir = base_dir.home_dir().join("gitrel\\bin\\");
+                if !bin_dir.exists() {
+                    fs::create_dir_all(bin_dir.as_path())?;
+                }
             }
         }
-        dbg!(&bin_dir);
+        // dbg!(&bin_dir);
 
         let proj_dirs = ProjectDirs::from("com.github", "izirku", crate_name!()).unwrap();
         let cfg_dir = proj_dirs.config_dir();
@@ -93,9 +105,15 @@ impl ConfigurationManager {
         // dbg!(&config);
         // dbg!(&token);
 
+        #[cfg(target_os = "windows")]
+        let strip = false;
+
+        #[cfg(not(target_os = "windows"))]
+        let strip = config.gitrel.strip_execs;
+
         Ok(ConfigurationManager {
             token,
-            strip: config.gitrel.strip_execs,
+            strip,
             gh_per_page: config.github_pagination.per_page,
             gh_max_pages: config.github_pagination.max_pages,
             packages,
