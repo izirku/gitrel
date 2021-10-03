@@ -1,6 +1,5 @@
 mod cmd;
 mod domain;
-mod foundation;
 
 use anyhow::Result;
 use clap::{crate_version, load_yaml, App};
