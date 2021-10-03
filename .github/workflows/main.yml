@@ -14,7 +14,6 @@ env:
   PROJECT_NAME: gitrel
   PROJECT_DESC: "Install and manage binaries via GitHub releases"
   PROJECT_AUTH: "Evgenii <zjekadev@gmail.com>"
-  RUST_MIN_SRV: "1.55.0"
 
 jobs:
   build:
@@ -25,7 +24,6 @@ jobs:
       matrix:
         job:
           - { os: ubuntu-latest  , target: x86_64-unknown-linux-gnu }
-          - { os: ubuntu-latest  , target: x86_64-unknown-linux-musl , use-cross: use-cross }
           - { os: macos-latest   , target: x86_64-apple-darwin }
           - { os: windows-latest , target: x86_64-pc-windows-msvc }
     steps:
@@ -74,11 +72,6 @@ jobs:
         unset DEPLOY ; if [[ $REF_TAG =~ ^[vV]?[0-9].* ]]; then DEPLOY='true' ; fi
         echo set-output name=DEPLOY::${DEPLOY:-<empty>/false}
         echo ::set-output name=DEPLOY::${DEPLOY}
-        # target-specific options
-        # * CARGO_USE_CROSS (truthy)
-        CARGO_USE_CROSS='true' ; case '${{ matrix.job.use-cross }}' in ''|0|f|false|n|no) unset CARGO_USE_CROSS ;; esac;
-        echo set-output name=CARGO_USE_CROSS::${CARGO_USE_CROSS:-<empty>/false}
-        echo ::set-output name=CARGO_USE_CROSS::${CARGO_USE_CROSS}
         # * strip executable?
         STRIP="strip" ; case ${{ matrix.job.target }} in *-pc-windows-msvc) STRIP="" ;; esac;
         echo set-output name=STRIP::${STRIP}
@@ -98,13 +91,11 @@ jobs:
     - name: Build
       uses: actions-rs/cargo@v1
       with:
-        use-cross: ${{ steps.vars.outputs.CARGO_USE_CROSS }}
         command: build
         args: --release --target=${{ matrix.job.target }}
     - name: Test
       uses: actions-rs/cargo@v1
       with:
-        use-cross: ${{ steps.vars.outputs.CARGO_USE_CROSS }}
         command: test
         args: --target=${{ matrix.job.target }} ${{ steps.vars.outputs.CARGO_TEST_OPTIONS}}
     - name: Archive executable artifacts
