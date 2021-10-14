@@ -10,7 +10,7 @@ a last resort.
 ## Usage
 
 If a `repo` has the same name as `user`/`org`, a *short-hand* can be used,
-so, "`gitrel install rust-analyzer`" it the same as
+so, "`gitrel install rust-analyzer`" is the same as
 "`gitrel install https://github.com/rust-analyzer/rust-analyzer@*`".
 Where "`@*`" stands for a *latest release*, and isn't parsed as a
 *semantic version*.
@@ -56,7 +56,7 @@ Currently, to use an authenticated access to GitHub, create a  `~/.config/gitrel
 
 - [ ] implement `uninstall`
 - [ ] implement `install --ensure`
-- [ ] change repo layout to use *cargo workspaces*
+- [v] change repo layout to use *cargo workspaces*
 
 ### Full Version
 
