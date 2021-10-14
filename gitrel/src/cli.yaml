@@ -67,6 +67,7 @@ subcommands:
       args:
         - name:
             about: binary name(s)
+            required: true
             takes_value: true
             multiple_values: true
   - list:
