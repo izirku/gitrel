@@ -14,6 +14,7 @@ fn main() -> Result<()> {
         Some(("list", sub_m)) => cmd::list(sub_m),
         Some(("install", sub_m)) => rt_current_thread(cmd::install(sub_m)),
         Some(("update", sub_m)) => rt_current_thread(cmd::update(sub_m)),
+        Some(("uninstall", sub_m)) => rt_current_thread(cmd::uninstall(sub_m)),
         _ => Ok(()),
     }
 }
