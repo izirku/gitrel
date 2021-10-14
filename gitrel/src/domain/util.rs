@@ -99,8 +99,7 @@ pub fn repo_name(repo_url: &Url) -> String {
     repo_name.to_lowercase()
 }
 
-// pub fn parse_gh_repo_spec(repo_spec: &str) -> (Url, String, String) {
-/// Returns a triple (repo, repo_name, requested)
+/// Returns a tuple (repo, requested)
 pub fn parse_gh_repo_spec(repo_spec: &str) -> (Url, String) {
     let (repo, requested) = if repo_spec.contains('@') {
         let (repo, requested) = repo_spec.split_at(repo_spec.find('@').unwrap());

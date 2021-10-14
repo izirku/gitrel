@@ -65,7 +65,7 @@ pub async fn update(matches: &ArgMatches) -> Result<()> {
                     match installer::install(pkg, &cm.bin_dir, cm.strip).await {
                         Ok(bin_size) => {
                             let msg = format!(
-                                "{} updating {} ({})",
+                                "{} updated {} ({})",
                                 style('✓').green(),
                                 style(&repo_name).green(),
                                 bytesize::to_string(bin_size, false),
