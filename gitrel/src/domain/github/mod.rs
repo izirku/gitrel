@@ -15,21 +15,17 @@ use tempfile::TempDir;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-pub struct GitHub<'a> {
-    client: &'a Client,
+const GH_MAX_PAGES: usize = 5;
+const GH_PER_PAGE: usize = 25;
+
+pub struct GitHub {
+    client: Client,
     api_headers: header::HeaderMap,
     dl_headers: header::HeaderMap,
-    per_page: usize,
-    max_pages: usize,
 }
 
-impl<'a> GitHub<'a> {
-    pub fn create(
-        client: &'a Client,
-        token: Option<&'a String>,
-        per_page: usize,
-        max_pages: usize,
-    ) -> Self {
+impl GitHub {
+    pub fn create(token: Option<&String>) -> Self {
         let mut api_headers = header::HeaderMap::new();
         api_headers.insert(
             header::ACCEPT,
@@ -64,12 +60,12 @@ impl<'a> GitHub<'a> {
         }
         // dbg!(&api_headers);
 
+        // let client = ;
+
         Self {
-            client,
+            client: reqwest::Client::new(),
             api_headers,
             dl_headers,
-            per_page,
-            max_pages,
         }
     }
 
@@ -152,18 +148,22 @@ impl<'a> GitHub<'a> {
 
         // dbg!(&resp);
 
-        if let GithubResponse::Ok(mut release) = resp {
-            release.assets.retain(|asset| {
-                util::matches_target(&asset.name)
-                    && util::archive_kind(&asset.name) != util::ArchiveKind::Unsupported
-            });
-            match release.assets.len() {
-                1 => Ok(Some(release)),
-                0 => Ok(None),
-                _ => Err(anyhow!("multiple assets matched the filter, consider filing a bug report stating which repo it failed on")),
+        match resp {
+            GithubResponse::Ok(mut release) => {
+                release.assets.retain(|asset| {
+                    util::matches_target(&asset.name)
+                        && util::archive_kind(&asset.name) != util::ArchiveKind::Unsupported
+                });
+                match release.assets.len() {
+                    1 => Ok(Some(release)),
+                    0 => Ok(None),
+                    _ => Err(anyhow!("multiple assets matched the filter, consider filing a bug report stating which repo it failed on")),
+                }
             }
-        } else {
-            Ok(None)
+            GithubResponse::Err(err) => {
+                eprintln!("{}", err.message);
+                Ok(None)
+            }
         }
     }
 
@@ -171,10 +171,10 @@ impl<'a> GitHub<'a> {
         let req_url = format!(
             "https://api.github.com/repos{}/releases?per_page={}",
             &pkg.repo.path(),
-            self.per_page,
+            GH_PER_PAGE,
         );
 
-        let mut curr_page = 1;
+        let mut curr_page: usize = 1;
 
         'outer: loop {
             // dbg!(curr_page);
@@ -216,7 +216,7 @@ impl<'a> GitHub<'a> {
             }
 
             curr_page += 1;
-            if curr_page > self.max_pages {
+            if curr_page > GH_MAX_PAGES {
                 // break Err(AppError::NotFound);
                 break Ok(None);
             }

@@ -3,20 +3,6 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use url::Url;
 
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum GithubResponse<T> {
-    Ok(T),
-    Err(ErrorResponse),
-}
-
-// #[derive(Serialize, Deserialize)]
-#[derive(Debug, Deserialize)]
-pub struct ErrorResponse {
-    message: String,
-    // documentation_url: String,
-}
-
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]

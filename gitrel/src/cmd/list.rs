@@ -1,6 +1,5 @@
-use crate::domain::conf::ConfigurationManager;
+use crate::domain::packages::Packages;
 use anyhow::Result;
-use clap::ArgMatches;
 use console::style;
 use tabled::{style::Line, Alignment, Column, Format, Modify, Object, Row, Style, Table, Tabled};
 
@@ -17,9 +16,10 @@ struct ListLine<'a> {
 }
 
 /// List installed packages
-pub fn list(matches: &ArgMatches) -> Result<()> {
-    let cm = ConfigurationManager::with_clap_matches(matches)?;
-    let packages = match cm.get_packages() {
+pub fn list() -> Result<()> {
+    let packages = Packages::new()?;
+
+    let pkgs = match packages.get() {
         Ok(Some(packages)) => packages,
         Ok(None) => {
             println!("nothing is installed on this system");
@@ -28,10 +28,10 @@ pub fn list(matches: &ArgMatches) -> Result<()> {
         Err(e) => return Err(e),
     };
 
-    let mut list_lines = Vec::with_capacity(packages.len());
+    let mut list_lines = Vec::with_capacity(pkgs.len());
 
     let blank = "".to_string();
-    for (name, pkg_spec) in packages.iter() {
+    for (name, pkg_spec) in pkgs.iter() {
         list_lines.push(ListLine {
             bin: name,
             requested: &pkg_spec.requested,
@@ -41,7 +41,7 @@ pub fn list(matches: &ArgMatches) -> Result<()> {
     }
 
     let table = Table::new(&list_lines)
-        .with(Style::noborder().header(Some(Line::short('-', '+'))))
+        .with(Style::NO_BORDER.header(Some(Line::short('-', '+'))))
         .with(
             Modify::new(Column(..1))
                 .with(Alignment::left())
@@ -63,12 +63,7 @@ pub fn list(matches: &ArgMatches) -> Result<()> {
                 .with(Format(|s| style(s).blue().to_string())),
         )
         .with(Modify::new(Column(3..).not(Row(..1))).with(Format(|s| {
-            format!(
-                "{}{}{}",
-                style('[').cyan().to_string(),
-                s,
-                style(']').cyan().to_string()
-            )
+            format!("{}{}{}", style('[').cyan(), s, style(']').cyan())
         })));
 
     println!("{}", table);

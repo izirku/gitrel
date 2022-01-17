@@ -17,7 +17,7 @@ use zip::ZipArchive;
 // use tokio::fs::File;
 // use tokio::io::{self, AsyncWriteExt};
 
-pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<u64> {
+pub async fn install(pkg: &Package, bin_dir: &Path) -> Result<u64> {
     let file_name = util::bin_name(&pkg.repo);
     let archive_path = pkg.asset_path.as_ref().unwrap().as_path();
     let dest = bin_dir.join(&file_name);
@@ -54,7 +54,7 @@ pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<u64> 
 
     #[allow(clippy::if_same_then_else)]
     #[allow(clippy::branches_sharing_code)]
-    if strip {
+    if let Some(true) = pkg.strip {
         cfg_if::cfg_if! {
             if #[cfg(target_family = "unix")] {
                 match set_permissions(dest, Permissions::from_mode(0o755)) {

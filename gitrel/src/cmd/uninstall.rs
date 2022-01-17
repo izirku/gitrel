@@ -1,15 +1,16 @@
-use crate::domain::conf::ConfigurationManager;
+use crate::domain::packages::Packages;
 use crate::domain::uninstaller::uninstall as uninstall_binary;
+use crate::domain::util::{bin_dir, message_fail};
 use anyhow::{anyhow, Result};
-use clap::{crate_name, ArgMatches};
+use clap::crate_name;
 use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
 
 /// Uninstall installed packages
-pub async fn uninstall(matches: &ArgMatches) -> Result<()> {
-    let cm = ConfigurationManager::with_clap_matches(matches)?;
+pub async fn uninstall(bins_to_uninstall: Vec<String>) -> Result<()> {
+    let packages = Packages::new()?;
 
-    let mut pkgs_installed = match cm.get_packages() {
+    let mut pkgs_installed = match packages.get() {
         Ok(Some(packages)) => packages,
         Ok(None) => {
             println!(
@@ -21,14 +22,12 @@ pub async fn uninstall(matches: &ArgMatches) -> Result<()> {
         Err(e) => return Err(e),
     };
 
-    // arg "name" is required, safe to unwrap
-    let bins_to_uninstall: Vec<_> = matches.values_of("name").unwrap().collect();
-
+    let bin_dir = bin_dir()?;
     let mut needs_save = false;
     let mut uninstalled_ct = 0;
     let mut errors = Vec::with_capacity(bins_to_uninstall.len());
 
-    for bin_name in bins_to_uninstall.into_iter() {
+    for bin_name in &bins_to_uninstall {
         let pb = ProgressBar::new(u64::MAX);
         pb.set_style(
             ProgressStyle::default_bar()
@@ -39,7 +38,7 @@ pub async fn uninstall(matches: &ArgMatches) -> Result<()> {
         pb.enable_steady_tick(220);
 
         if pkgs_installed.contains_key(bin_name) {
-            match uninstall_binary(bin_name, &cm.bin_dir) {
+            match uninstall_binary(bin_name, bin_dir.as_path()) {
                 Ok(()) => {
                     pkgs_installed.remove(bin_name);
                     let msg = format!(
@@ -65,7 +64,7 @@ pub async fn uninstall(matches: &ArgMatches) -> Result<()> {
     }
 
     if needs_save {
-        cm.put_packages(&pkgs_installed)?;
+        packages.put(&pkgs_installed)?;
     }
 
     println!("\nUninstalled {}.", uninstalled_ct);
@@ -84,11 +83,4 @@ pub async fn uninstall(matches: &ArgMatches) -> Result<()> {
             Err(anyhow!("operation failed"))
         }
     }
-}
-
-fn message_fail(pb: &ProgressBar, repo_name: &str, msg: &str) {
-    let msg = format!("{} {} {}", style('✗').red(), msg, style(&repo_name).red());
-    pb.disable_steady_tick();
-    pb.set_style(ProgressStyle::default_bar().template("{msg}"));
-    pb.finish_with_message(msg);
 }

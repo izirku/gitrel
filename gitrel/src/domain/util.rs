@@ -1,6 +1,10 @@
+use anyhow::{anyhow, Context, Result};
+use console::style;
+use directories::BaseDirs;
+use indicatif::{ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::collections::HashSet;
+use std::{collections::HashSet, fs, path::PathBuf};
 use url::Url;
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
@@ -10,6 +14,13 @@ lazy_static! {
 
     static ref TERMS: Regex =
         Regex::new(r"(x86_64|x86\-64|32\-bit|[a-zA-Z0-9]+)").expect("error parsing regex");
+}
+
+pub fn message_fail(pb: &ProgressBar, repo_name: &str, msg: &str) {
+    let msg = format!("{} {} {}", style('✗').red(), msg, style(&repo_name).red());
+    pb.disable_steady_tick();
+    pb.set_style(ProgressStyle::default_bar().template("{msg}"));
+    pb.finish_with_message(msg);
 }
 
 pub fn matches_target(str: &str) -> bool {
@@ -79,6 +90,26 @@ pub fn archive_kind(str: &str) -> ArchiveKind {
     } else {
         ArchiveKind::Unsupported
     }
+}
+
+pub fn bin_dir() -> Result<PathBuf> {
+    let base_dirs = BaseDirs::new().ok_or_else(|| anyhow!("unable to get usable `base dir`"))?;
+    let home_dir = base_dirs.home_dir();
+
+    // if exists, prefer ~/.local/bin over ~/bin,
+    // if DNE, create ~/.local/bin
+    // (note: do it on all systems, even windows)
+    let bin_dir = if home_dir.join(".local/bin/").exists() {
+        home_dir.join(".local/bin/")
+    } else if home_dir.join("bin/").exists() {
+        home_dir.join("bin/")
+    } else {
+        let tmp = home_dir.join(".local/bin/");
+        fs::create_dir_all(tmp.as_path()).context("create `~/.local/bin`")?;
+        tmp
+    };
+
+    Ok(bin_dir)
 }
 
 pub fn bin_name(repo_url: &Url) -> String {

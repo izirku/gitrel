@@ -1,25 +1,31 @@
-use crate::domain::conf::ConfigurationManager;
 use crate::domain::github::GitHub;
 use crate::domain::installer;
-use crate::domain::package::{Package, PackageMap};
+use crate::domain::package::Package;
+use crate::domain::packages::{PackageMap, Packages};
 use crate::domain::util;
 use anyhow::{anyhow, Result};
-use clap::{crate_name, ArgMatches};
+use clap::crate_name;
 use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
 
 /// Install packages
-pub async fn install(matches: &ArgMatches) -> Result<()> {
+pub async fn install(
+    repos: Vec<String>,
+    token: Option<&String>,
+    strip: bool,
+    force: bool,
+) -> Result<()> {
     // let repo = matches.value_of("repo").unwrap(); // required arg, safe to unwrap
-    let force_reinstall = matches.is_present("force");
+    // let force = matches.is_present("force");
     // let repos = matches.values_of("repo").unwrap();
-    let repos: Vec<&str> = matches.values_of("repo").unwrap().collect();
+    // let repos: Vec<&str> = matches.values_of("repo").unwrap().collect();
     let requested_ct = repos.len();
     let mut errors = Vec::with_capacity(repos.len());
 
-    let cm = ConfigurationManager::with_clap_matches(matches)?;
+    // let cm = ConfigurationManager::with_clap_matches(matches)?;
 
-    let mut packages = match cm.get_packages() {
+    let packages = Packages::new()?;
+    let mut pkgs = match packages.get() {
         Ok(Some(packages)) => packages,
         Ok(None) => PackageMap::new(),
         Err(e) => return Err(e),
@@ -27,16 +33,15 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
 
     let mut installed = 0;
 
-    let client = reqwest::Client::new();
     let temp_dir = tempfile::tempdir().expect("creating a temp dir failed");
 
-    let gh = GitHub::create(&client, cm.token.as_ref(), cm.gh_per_page, cm.gh_max_pages);
+    let gh = GitHub::create(token);
 
-    for repo in repos.into_iter() {
-        let mut pkg = Package::create(repo);
+    for repo in &repos {
+        let mut pkg = Package::create(repo, strip.then(|| true));
         let repo_name = util::repo_name(&pkg.repo);
 
-        if !force_reinstall && packages.contains_key(&repo_name) {
+        if !force && pkgs.contains_key(&repo_name) {
             println!(
                 "{} it already installed, use `{1} install --force {2}` to reinstall, or `{1} update ...` to update",
                 &repo_name,
@@ -55,14 +60,16 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
         pb.set_message(format!("searching for {}", style(&repo_name).green()));
         pb.enable_steady_tick(220);
 
-        match gh.find_match(&mut pkg, force_reinstall).await {
+        match gh.find_match(&mut pkg, force).await {
             Ok(true) => {
                 pb.set_message(format!("downloading {}", style(&repo_name).green()));
                 gh.download(&mut pkg, &temp_dir).await?;
 
                 let msg = format!("installing {}", style(&repo_name).green());
                 pb.set_message(msg);
-                match installer::install(&pkg, &cm.bin_dir, cm.strip).await {
+
+                let bin_dir = util::bin_dir()?;
+                match installer::install(&pkg, &bin_dir).await {
                     Ok(bin_size) => {
                         let msg = format!(
                             "{} installed {} ({})",
@@ -74,8 +81,8 @@ pub async fn install(matches: &ArgMatches) -> Result<()> {
                         pb.set_style(ProgressStyle::default_bar().template("{msg}"));
                         pb.finish_with_message(msg);
 
-                        packages.insert(repo_name, pkg);
-                        cm.put_packages(&packages)?;
+                        pkgs.insert(repo_name, pkg);
+                        packages.put(&pkgs)?;
                         installed += 1;
                     }
                     Err(e) => {

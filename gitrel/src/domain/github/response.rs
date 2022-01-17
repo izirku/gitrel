@@ -10,6 +10,6 @@ pub enum GithubResponse<T> {
 // #[derive(Serialize, Deserialize)]
 #[derive(Debug, Deserialize)]
 pub struct ErrorResponse {
-    message: String,
+    pub message: String,
     // documentation_url: String,
 }

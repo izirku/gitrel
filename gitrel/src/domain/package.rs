@@ -1,10 +1,8 @@
 use super::util::parse_gh_repo_spec;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, path::PathBuf};
+use std::path::PathBuf;
 use url::Url;
-
-pub type PackageMap = BTreeMap<String, Package>;
 
 /// Is a representation of a \[maybe installed\] package. Also serves as
 /// an interchange format between [ConfigurationManager](crate::business::conf::ConfigurationManager),
@@ -24,6 +22,8 @@ pub struct Package {
     /// - `"<plain string>"` - a named release (can be a pre-release)
     /// - `"<SEMVER string>"` - a *semver* to match against *release tag*
     pub requested: String,
+    /// use `strip` on the binary
+    pub strip: Option<bool>,
     /// When remote repo was last updated
     pub timestamp: Option<DateTime<Utc>>,
     /// Used by GitHub APIs to identify and download an asset
@@ -44,7 +44,7 @@ pub enum PackageMatchKind {
 }
 
 impl Package {
-    pub fn create(repo_spec: &str) -> Self {
+    pub fn create(repo_spec: &str, strip: Option<bool>) -> Self {
         // let (repo, repo_name, requested) = parse_gh_repo_spec(repo_spec);
         let (repo, requested) = parse_gh_repo_spec(repo_spec);
 
@@ -53,6 +53,7 @@ impl Package {
             repo,
             tag: None,
             requested,
+            strip,
             timestamp: None,
             asset_id: None,
             asset_name: None,

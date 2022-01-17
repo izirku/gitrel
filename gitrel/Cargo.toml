@@ -1,6 +1,6 @@
 [package]
 name = "gitrel"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Evgenii Grigorev <zjekadev@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
@@ -13,33 +13,33 @@ readme = "crates-io.md"
 include = ["src/**/*.rs", "crates-io.md", "README.md", "LICENSE-APACHE", "LICENSE-MIT"] 
 
 [dependencies]
-anyhow = "1.0.44"
+anyhow = "1.0.52"
 chrono = { version = "0.4.19", features = ["serde"] }
-clap = { version = "3.0.0-beta.4", features = ["yaml"] }
+clap = { version = "3.0.7", features = ["derive", "env", "cargo"] }
 directories = "4.0.1"
 lazy_static = "1.4.0"
 regex = "1.5.4"
-reqwest = { version = "0.11.5", features = ["json", "stream"] }
+reqwest = { version = "0.11.9", features = ["json", "stream"] }
 semver = "1.0.4"
-serde = { version = "1.0.130", features = ["derive"] }
-serde_json = "1.0.68"
-tokio = { version = "1.12.0", features = ["full"] }
+serde = { version = "1.0.133", features = ["derive"] }
+serde_json = "1.0.75"
+tokio = { version = "1.15.0", features = ["full"] }
 toml = { version = "0.5.8", features = ["preserve_order"] }
 url = { version = "2.2.2", features = ["serde"] }
-tempfile = "3.2.0"
+tempfile = "3.3.0"
 bzip2 = "0.4.3"
 xz = "0.1.0"
 zip = "0.5.13"
-tar = "0.4.37"
+tar = "0.4.38"
 flate2 = "1.0.22"
 cfg-if = "1.0.0"
-tabled = { version = "0.3.0", features = ["color"] }
-console = "0.14.1"
+tabled = { version = "0.4.2", features = ["color"] }
+console = "0.15.0"
 bytesize = "1.1.0"
-futures-util = "0.3.17"
-indicatif = "0.17.0-beta.1"
+futures-util = "0.3.19"
+indicatif = "0.17.0-rc.1"
 
 [build-dependencies]
-platforms = "1.1.0"
+platforms = "2.0.0"
 lazy_static = "1.4.0"
 
