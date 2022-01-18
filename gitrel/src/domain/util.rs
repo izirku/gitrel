@@ -10,7 +10,7 @@ use url::Url;
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 lazy_static! {
-    pub static ref RX_REPO: Regex = Regex::new(r"(?:https:\/\/github\.com\/)?((?:[^/]+\/[^/]+)|[^/]+)(?:\/)?").expect("error parsing regex");
+    pub static ref RX_REPO: Regex = Regex::new(r"(?:https://github\.com/)?((?:[^/]+/[^/]+)|[^/]+)(?:/)?").expect("error parsing regex");
 
     pub static ref SEMVER: Regex = Regex::new(r"(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?").expect("error parsing regex");
 
@@ -117,7 +117,7 @@ pub fn packages_file() -> Result<PathBuf> {
     fs::create_dir_all(cfg_dir.as_path())
         .with_context(|| format!("unable to create config dir: {:?}", cfg_dir.as_path()))?;
 
-    let path = cfg_dir.join("packages.toml");
+    let path = cfg_dir.join("packages.json");
 
     Ok(path)
 }

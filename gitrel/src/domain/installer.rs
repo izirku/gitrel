@@ -16,7 +16,13 @@ use zip::ZipArchive;
 // use tokio::fs::File;
 // use tokio::io::{self, AsyncWriteExt};
 
-pub async fn install(asset_name: &str, asset_path: &Path, bin_dir: &Path, bin_name: &str, strip: bool) -> Result<u64> {
+pub async fn install(
+    asset_name: &str,
+    asset_path: &Path,
+    bin_dir: &Path,
+    bin_name: &str,
+    strip: bool,
+) -> Result<u64> {
     let dest = bin_dir.join(bin_name);
     let dest = dest.as_path();
 
@@ -27,9 +33,8 @@ pub async fn install(asset_name: &str, asset_path: &Path, bin_dir: &Path, bin_na
         ArchiveKind::Zip => extract_zip(asset_path, bin_name, dest),
         ArchiveKind::Tar(tar_kind) => extract_tar(asset_path, tar_kind, bin_name, dest),
         ArchiveKind::Uncompressed => {
-            let mut reader = BufReader::new(
-                File::open(asset_path).context("opening downloaded file")?,
-            );
+            let mut reader =
+                BufReader::new(File::open(asset_path).context("opening downloaded file")?);
             let mut dest_file = OpenOptions::new()
                 .write(true)
                 .create(true)
@@ -56,9 +61,7 @@ pub async fn install(asset_name: &str, asset_path: &Path, bin_dir: &Path, bin_na
             if #[cfg(target_family = "unix")] {
                 match set_permissions(dest, Permissions::from_mode(0o755)) {
                     Ok(_) => {
-                        let output = std::process::Command::new("strip").arg(dest).output().context("stripping the executable")?;
-                        std::io::stdout().write_all(&output.stdout).context("writing to stdout")?;
-                        std::io::stderr().write_all(&output.stderr).context("writing to stderr")?;
+                        std::process::Command::new("strip").arg(dest).output().context("stripping the executable")?;
                         let bin_size = fs::metadata(dest).context("getting installed binary metadata")?.len();
                         Ok(bin_size)
                     },

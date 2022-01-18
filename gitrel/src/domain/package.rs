@@ -91,7 +91,7 @@ pub fn read_packages_file(packages_file: &Path) -> Result<Vec<Package>> {
     }
 }
 
-pub fn write_packages_file(packages_file: &Path, packages: &Vec<Package>) -> Result<()> {
+pub fn write_packages_file(packages_file: &Path, packages: &[Package]) -> Result<()> {
     fs::write(
         packages_file,
         serde_json::to_string(packages).context("serializing packages into JSON format")?,

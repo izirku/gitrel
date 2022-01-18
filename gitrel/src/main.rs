@@ -4,6 +4,7 @@ mod domain;
 use anyhow::Result;
 use clap::{AppSettings, Parser, Subcommand};
 use std::future::Future;
+use std::io::{self, ErrorKind, Write};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -68,9 +69,13 @@ fn main() -> Result<()> {
     // println!("{:#?}", &args);
     // Ok(())
 
-    match args.command {
-        Commands::List => cmd::list(),
+    ctrlc::set_handler(move || {
+        eprint!("\x1b[?25h");
+    })
+    .expect("Error setting Ctrl-C handler");
 
+    match args.command {
+        // Commands::List => cmd::list(),
         Commands::Install {
             repo,
             token,
@@ -78,11 +83,11 @@ fn main() -> Result<()> {
             force,
         } => rt_current_thread(cmd::install(repo, token.as_ref(), strip, force)),
 
-        Commands::Update { bin_names, token } => {
-            rt_current_thread(cmd::update(bin_names, token.as_ref()))
-        }
+        // Commands::Update { bin_names, token } => {
+        //     rt_current_thread(cmd::update(bin_names, token.as_ref()))
+        // }
 
-        Commands::Uninstall { bin_names } => rt_current_thread(cmd::uninstall(bin_names)),
+        // Commands::Uninstall { bin_names } => rt_current_thread(cmd::uninstall(bin_names)),
         _ => unimplemented!(),
     }
     // match matches.subcommand() {
