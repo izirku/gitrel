@@ -4,7 +4,7 @@ use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
-use std::io::{BufReader, Write};
+use std::io::{BufReader, Seek, Write};
 use std::path::Path;
 #[cfg(target_family = "unix")]
 use std::{
@@ -162,6 +162,15 @@ fn extract_zip(archive: &Path, file_name: &str, dest: &Path) -> Result<u64> {
     let mut zip = ZipArchive::new(File::open(archive).context("opening a zip file")?)
         .context("reading a zip file")?;
 
+    let archive_name = archive
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .split_once('.')
+        .unwrap()
+        .0;
+
     // first we have to find an index of what we want, without decompression
     let mut idx_to_extract = None;
     for i in 0..zip.len() {
@@ -172,8 +181,9 @@ fn extract_zip(archive: &Path, file_name: &str, dest: &Path) -> Result<u64> {
             .and_then(Path::file_name)
             .and_then(OsStr::to_str)
         {
-            if zname == file_name {
+            if zname == file_name || zname == archive_name {
                 idx_to_extract = Some(i);
+                break;
             }
         }
     }
@@ -225,19 +235,73 @@ fn extract_tar(archive: &Path, tar_kind: TarKind, file_name: &str, dest: &Path) 
         TarKind::Uncompressed => archive.to_path_buf(),
     };
 
-    let reader = BufReader::new(File::open(tarball_path).context("reading a tarball")?);
-    // let reader = File::open(tarball_path).context("reading a tarball")?;
-    let mut tarball = tar::Archive::new(reader);
+    // --------------- //
+    // we loop twice!! //
+    // --------------- //
 
-    for entry in tarball.entries().context("reading tarball entries")? {
-        let mut entry = entry.context("reading a tarball entry")?;
-        let entry_path = entry.path().context("getting a tarball entry path")?;
-        if entry_path.file_name().and_then(OsStr::to_str).unwrap() == file_name {
-            entry.unpack(dest).context("unpacking a tarball entry")?;
-            let bin_size = fs::metadata(dest)
-                .context("getting installed binary metadata")?
-                .len();
-            return Ok(bin_size);
+    // on the first scan we match to a file name, as this is the prefered name
+    {
+        let reader = BufReader::new(File::open(&tarball_path).context("reading a tarball")?);
+        // let reader = File::open(tarball_path).context("reading a tarball")?;
+        let mut tarball = tar::Archive::new(reader);
+
+        for entry in tarball.entries().context("reading tarball entries")? {
+            let mut entry = entry.context("reading a tarball entry")?;
+            let entry_path = entry.path().context("getting a tarball entry path")?;
+            if entry_path.is_file() {
+                let file_entry = entry_path
+                    .file_name()
+                    .and_then(OsStr::to_str)
+                    .context("getting a tarball file entry")?;
+                if file_entry == file_name {
+                    entry.unpack(dest).context("unpacking a tarball entry")?;
+                    let bin_size = fs::metadata(dest)
+                        .context("getting installed binary metadata")?
+                        .len();
+                    return Ok(bin_size);
+                }
+            }
+        }
+    }
+
+    // on the second scan we match to the archive file name itself, as this happens to
+    // how for example mikefarah/yq archived their files...
+    {
+        let reader = BufReader::new(File::open(&tarball_path).context("reading a tarball")?);
+        // let reader = File::open(tarball_path).context("reading a tarball")?;
+        let mut tarball = tar::Archive::new(reader);
+
+        let archive_name = archive
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .split_once('.')
+            .unwrap()
+            .0;
+
+        // return Err(anyhow!(format!("archive name: `{}`", archive_name)));
+
+        let mut file_log = File::create("file_entries.log").context("creating a log file")?;
+
+        for entry in tarball.entries().context("reading tarball entries")? {
+            let mut entry = entry.context("reading a tarball entry")?;
+            let entry_path = entry.path().context("getting a tarball entry path")?;
+            writeln!(file_log, "file entry: {}", entry_path.display())?;
+            if entry_path.is_file() {
+                let file_entry = entry_path
+                    .file_name()
+                    .and_then(OsStr::to_str)
+                    .context("getting a tarball file entry")?;
+                // println!("file entry: {}", file_entry);
+                if file_entry == archive_name {
+                    entry.unpack(dest).context("unpacking a tarball entry")?;
+                    let bin_size = fs::metadata(dest)
+                        .context("getting installed binary metadata")?
+                        .len();
+                    return Ok(bin_size);
+                }
+            }
         }
     }
 

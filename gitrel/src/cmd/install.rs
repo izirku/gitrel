@@ -41,7 +41,7 @@ pub async fn install(
         return Ok(());
     }
 
-    let pb = ProgressBar::new(u64::MAX);
+    let mut pb = ProgressBar::new(u64::MAX);
     pb.set_style(
         ProgressStyle::default_bar()
             .template("{spinner:.green} {msg}")
@@ -54,23 +54,34 @@ pub async fn install(
     match gh.find_new(&user, &repo, &requested_ver).await {
         Ok(Some(release)) => {
             pb.enable_steady_tick(220);
-            pb.set_message(format!("downloading {}", style(&repo).green()));
+            // pb.set_message(format!("downloading {}", style(&repo).green()));
 
             let (asset_id, asset_name) = if release.assets.len() == 1 {
                 (release.assets[0].id, release.assets[0].name.as_str())
             } else {
                 pb.disable_steady_tick();
+                // pb.finish_and_clear();
 
                 let selection: Vec<_> = release.assets.iter().map(|asset| &asset.name).collect();
                 // dbg!(selection);
                 let res = Select::with_theme(&ColorfulTheme::default())
-                    .with_prompt("Multiple assets found, select one:")
+                    // .with_prompt(format!(
+                    //     "downloading `{}`, multiple assets found, please select one:",
+                    //     &repo
+                    // ))
                     .items(&selection)
                     .interact();
                 // .map_err(|_| anyhow::Error::msg("selection interrupted, aborting..."))?;
 
                 match res {
                     Ok(i) => {
+                        // pb = ProgressBar::new(u64::MAX);
+                        // pb.set_style(
+                        //     ProgressStyle::default_bar()
+                        //         .template("{spinner:.green} {msg}")
+                        //         .progress_chars("##-"),
+                        // );
+                        // pb.set_message(format!("downloading {}", style(&repo).green()));
                         pb.enable_steady_tick(220);
                         (release.assets[i].id, release.assets[i].name.as_str())
                     }
