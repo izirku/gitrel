@@ -250,7 +250,7 @@ impl GitHub {
         &self,
         user: &str,
         repo: &str,
-        asset_id: &str,
+        asset_id: u64,
         asset_name: &str,
         temp_dir: &TempDir,
     ) -> Result<PathBuf> {

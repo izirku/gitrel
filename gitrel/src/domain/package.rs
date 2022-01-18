@@ -3,7 +3,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use url::Url;
 
 /// Is a representation of a \[maybe installed\] package. Also serves as
 /// an interchange format between [ConfigurationManager](crate::business::conf::ConfigurationManager),
@@ -17,8 +16,10 @@ pub struct Package {
     pub repo: String,
     /// name binary to use
     pub bin_name: String,
-    /// is `repo_user/repo_name`
-    pub url: Url,
+
+    // /// is `repo_user/repo_name`
+    // pub url: Url,
+
     /// *release tag* of an installed or a *matched* release
     pub tag: String,
     /// a requested *version*, can be one of:
