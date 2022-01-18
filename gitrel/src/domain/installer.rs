@@ -1,4 +1,3 @@
-use super::package::Package;
 use super::util::{self, ArchiveKind, TarKind};
 use anyhow::{anyhow, Context, Result};
 use bzip2::read::BzDecoder;
@@ -17,21 +16,19 @@ use zip::ZipArchive;
 // use tokio::fs::File;
 // use tokio::io::{self, AsyncWriteExt};
 
-pub async fn install(pkg: &Package, bin_dir: &Path) -> Result<u64> {
-    let file_name = util::bin_name(&pkg.repo);
-    let archive_path = pkg.asset_path.as_ref().unwrap().as_path();
-    let dest = bin_dir.join(&file_name);
+pub async fn install(asset_name: &str, asset_path: &Path, bin_dir: &Path, bin_name: &str, strip: bool) -> Result<u64> {
+    let dest = bin_dir.join(bin_name);
     let dest = dest.as_path();
 
-    let bin_size = match util::archive_kind(pkg.asset_name.as_ref().unwrap()) {
-        ArchiveKind::GZip => extract_gzip(archive_path, dest),
-        ArchiveKind::BZip => extract_bzip(archive_path, dest),
-        ArchiveKind::XZ => extract_xz(archive_path, dest),
-        ArchiveKind::Zip => extract_zip(archive_path, &file_name, dest),
-        ArchiveKind::Tar(tar_kind) => extract_tar(archive_path, tar_kind, &file_name, dest),
+    let bin_size = match util::archive_kind(asset_name) {
+        ArchiveKind::GZip => extract_gzip(asset_path, dest),
+        ArchiveKind::BZip => extract_bzip(asset_path, dest),
+        ArchiveKind::XZ => extract_xz(asset_path, dest),
+        ArchiveKind::Zip => extract_zip(asset_path, bin_name, dest),
+        ArchiveKind::Tar(tar_kind) => extract_tar(asset_path, tar_kind, bin_name, dest),
         ArchiveKind::Uncompressed => {
             let mut reader = BufReader::new(
-                File::open(pkg.asset_path.as_ref().unwrap()).context("opening downloaded file")?,
+                File::open(asset_path).context("opening downloaded file")?,
             );
             let mut dest_file = OpenOptions::new()
                 .write(true)
@@ -54,7 +51,7 @@ pub async fn install(pkg: &Package, bin_dir: &Path) -> Result<u64> {
 
     #[allow(clippy::if_same_then_else)]
     #[allow(clippy::branches_sharing_code)]
-    if let Some(true) = pkg.strip {
+    if strip {
         cfg_if::cfg_if! {
             if #[cfg(target_family = "unix")] {
                 match set_permissions(dest, Permissions::from_mode(0o755)) {

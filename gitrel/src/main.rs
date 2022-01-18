@@ -17,8 +17,8 @@ enum Commands {
     /// install binaries
     #[clap(setting(AppSettings::ArgRequiredElseHelp))]
     Install {
-        /// GitHub user/repo(s)
-        repos: Vec<String>,
+        /// GitHub user/repo
+        repo: String,
 
         /// GitHub API token
         #[clap(short, long)]
@@ -72,11 +72,11 @@ fn main() -> Result<()> {
         Commands::List => cmd::list(),
 
         Commands::Install {
-            repos,
+            repo,
             token,
             strip,
             force,
-        } => rt_current_thread(cmd::install(repos, token.as_ref(), strip, force)),
+        } => rt_current_thread(cmd::install(repo, token.as_ref(), strip, force)),
 
         Commands::Update { bin_names, token } => {
             rt_current_thread(cmd::update(bin_names, token.as_ref()))

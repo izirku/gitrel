@@ -4,13 +4,14 @@ mod response;
 
 use self::release::Release;
 use self::response::GithubResponse;
-use super::package::{Package, PackageMatchKind};
+use super::package::{match_kind, Package, PackageMatchKind};
 use super::util;
 use anyhow::{anyhow, Context, Result};
 use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::{header, Client, Method};
 use std::cmp;
+use std::path::PathBuf;
 use tempfile::TempDir;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
@@ -74,59 +75,68 @@ impl GitHub {
     //     self
     // }
 
-    /// Find a release and suitable asset for a provided `pkg`.
-    /// Returns `true` if found, otherwise `false`.
-    pub async fn find_match(&self, pkg: &mut Package, force: bool) -> Result<bool> {
-        let resp = match pkg.match_kind() {
+    /// Find a `Release` matching provided parameters.
+    pub async fn find_new(
+        &self,
+        user: &str,
+        repo: &str,
+        requested: &str,
+    ) -> Result<Option<Release>> {
+        match match_kind(requested) {
             PackageMatchKind::Latest => {
                 let req_url = format!(
-                    "https://api.github.com/repos{}/releases/latest",
-                    &pkg.repo.path()
+                    "https://api.github.com/repos/{}/{}/releases/latest",
+                    user, repo,
                 );
-                // let req_url = format!("https://api.github.com/repos/{}/releases/latest", &pkg.repo);
-                self.get_exact_release(&req_url).await
+                self.get_exact_release(&req_url, repo).await
             }
             PackageMatchKind::Exact => {
                 let req_url = format!(
-                    "https://api.github.com/repos{}/releases/tags/{}",
-                    &pkg.repo.path(),
-                    &pkg.requested,
+                    "https://api.github.com/repos/{}/{}/releases/tags/{}",
+                    user, repo, requested,
                 );
-                self.get_exact_release(&req_url).await
+                self.get_exact_release(&req_url, repo).await
             }
-            PackageMatchKind::SemVer => self.find_release(pkg).await,
-        };
-        match resp {
-            Ok(Some(mut release)) => {
-                // dbg!(&release);
-
-                // Under normal circumstances, i.e, when not forcing a re-install,
-                // or not ensuring existance, if tag of the release is the same,
-                // say "nightly", we want to compare its `published_at` date to
-                // what we have on record. If it's not the same as ours, skip it.
-                // NB: Strict comparison for equality should be faster and enough.
-                if !force
-                    && pkg.tag.is_some() // newly requested package will have `None`
-                    && pkg.timestamp.is_some() // newly requested package will have `None`
-                    && &release.tag_name == pkg.tag.as_ref().unwrap()
-                    && release.published_at == pkg.timestamp.unwrap()
-                {
-                    return Ok(false);
-                }
-
-                pkg.timestamp = Some(release.published_at);
-                pkg.tag = Some(release.tag_name);
-                let asset = release.assets.pop().unwrap();
-                pkg.asset_id = Some(asset.id.to_string());
-                pkg.asset_name = Some(asset.name);
-                Ok(true)
+            PackageMatchKind::SemVer => {
+                let req_url = format!(
+                    "https://api.github.com/repos/{}/{}/releases?per_page={}",
+                    user, repo, GH_PER_PAGE,
+                );
+                self.find_release(&req_url, requested, repo).await
             }
-            Ok(None) => Ok(false),
-            Err(e) => Err(e),
         }
     }
 
-    async fn get_exact_release(&self, req_url: &str) -> Result<Option<Release>> {
+    /// Find a `Release` matching provided `Package`.
+    /// When `force` is `true`, return `Release`, even if it's not newer than
+    /// the one specified in `Package`
+    pub async fn find_update(&self, package: &Package, force: bool) -> Result<Option<Release>> {
+        let res = self
+            .find_new(&package.user, &package.repo, &package.requested)
+            .await?;
+
+        match res {
+            Some(release) => {
+                // Under normal circumstances, i.e, when not forcing a re-install,
+                // or not ensuring existance, if tag of the release is the same,
+                // say "nightly", we want to compare its `published_at` date to
+                // what we have on record. If it's the same as ours, skip it.
+                // NB: Strict comparison for equality should be faster and enough.
+                if !force
+                    && release.tag_name == package.tag
+                    && release.published_at == package.timestamp
+                {
+                    Ok(None)
+                } else {
+                    Ok(Some(release))
+                }
+            }
+            None => Ok(None),
+        }
+    }
+
+    // TODO:add FilterKind = Contains | RegEx
+    async fn get_exact_release(&self, req_url: &str, filter: &str) -> Result<Option<Release>> {
         let resp = self
             .client
             .get(req_url)
@@ -153,12 +163,21 @@ impl GitHub {
                 release.assets.retain(|asset| {
                     util::matches_target(&asset.name)
                         && util::archive_kind(&asset.name) != util::ArchiveKind::Unsupported
+                        && asset.name.contains(filter)
                 });
-                match release.assets.len() {
-                    1 => Ok(Some(release)),
-                    0 => Ok(None),
-                    _ => Err(anyhow!("multiple assets matched the filter, consider filing a bug report stating which repo it failed on")),
+                if !release.assets.is_empty() {
+                    Ok(Some(release))
+                } else {
+                    Ok(None)
                 }
+                // match release.assets.len() {
+                //     1 => Ok(Some(release)),
+                //     0 => Ok(None),
+                //     _ => {
+                //         // dbg!(release.assets);
+                //         Err(anyhow!("multiple assets matched the filter, consider filing a bug report stating which repo it failed on"))
+                //     }
+                // }
             }
             GithubResponse::Err(err) => {
                 eprintln!("{}", err.message);
@@ -167,13 +186,12 @@ impl GitHub {
         }
     }
 
-    async fn find_release(&self, pkg: &Package) -> Result<Option<Release>> {
-        let req_url = format!(
-            "https://api.github.com/repos{}/releases?per_page={}",
-            &pkg.repo.path(),
-            GH_PER_PAGE,
-        );
-
+    async fn find_release(
+        &self,
+        req_url: &str,
+        requested: &str,
+        filter: &str,
+    ) -> Result<Option<Release>> {
         let mut curr_page: usize = 1;
 
         'outer: loop {
@@ -181,7 +199,7 @@ impl GitHub {
 
             let resp = self
                 .client
-                .request(Method::GET, &req_url)
+                .request(Method::GET, req_url)
                 .headers(self.api_headers.clone())
                 .query(&[("page", curr_page)])
                 .send()
@@ -204,13 +222,17 @@ impl GitHub {
                     None
                 }
             }) {
-                if util::matches_semver(&release.tag_name, &pkg.requested) {
+                if util::matches_semver(&release.tag_name, requested) {
                     release.assets.retain(|asset| {
                         util::matches_target(&asset.name)
                             && util::archive_kind(&asset.name) != util::ArchiveKind::Unsupported
+                            && asset.name.contains(filter)
                     });
-                    if release.assets.len() == 1 {
+
+                    if !release.assets.is_empty() {
                         break 'outer Ok(Some(release));
+                    } else {
+                        break 'outer Ok(None);
                     }
                 }
             }
@@ -224,12 +246,18 @@ impl GitHub {
     }
 
     // pub async fn download( &self, pb: &ProgressBar, pkg: &mut Package, temp_dir: &TempDir,) -> Result<(), AppError> {
-    pub async fn download(&self, pkg: &mut Package, temp_dir: &TempDir) -> Result<()> {
+    pub async fn download(
+        &self,
+        user: &str,
+        repo: &str,
+        asset_id: &str,
+        asset_name: &str,
+        temp_dir: &TempDir,
+    ) -> Result<PathBuf> {
         use reqwest::StatusCode;
         let req_url = format!(
-            "https://api.github.com/repos{}/releases/assets/{}",
-            &pkg.repo.path(),
-            pkg.asset_id.as_ref().unwrap()
+            "https://api.github.com/repos/{}/{}/releases/assets/{}",
+            user, repo, asset_id
         );
 
         let resp = self
@@ -267,7 +295,7 @@ impl GitHub {
         let mut downloaded: u64 = 0;
         let mut stream = resp.bytes_stream();
 
-        let temp_file_name = temp_dir.path().join(pkg.asset_name.as_ref().unwrap());
+        let temp_file_name = temp_dir.path().join(asset_name);
         let mut temp_file = File::create(temp_file_name.as_path())
             .await
             .context(format!(
@@ -292,7 +320,6 @@ impl GitHub {
         // dbg!(downloaded);
         // pb.set_position(tot_size);
 
-        pkg.asset_path = Some(temp_file_name);
-        Ok(())
+        Ok(temp_file_name)
     }
 }

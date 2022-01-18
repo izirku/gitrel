@@ -1,7 +1,8 @@
-use super::util::parse_gh_repo_spec;
+use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::fs;
+use std::path::Path;
 use url::Url;
 
 /// Is a representation of a \[maybe installed\] package. Also serves as
@@ -10,13 +11,16 @@ use url::Url;
 /// and [Installer](crate::business::installer::Installer).
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Package {
-    // lower cased *repository name*
-    // #[serde(skip)]
-    // pub name: Option<String>,
+    /// user name
+    pub user: String,
+    /// repo name
+    pub repo: String,
+    /// name binary to use
+    pub bin_name: String,
     /// is `repo_user/repo_name`
-    pub repo: Url,
+    pub url: Url,
     /// *release tag* of an installed or a *matched* release
-    pub tag: Option<String>,
+    pub tag: String,
     /// a requested *version*, can be one of:
     /// - `"*"` - latest release (default)
     /// - `"<plain string>"` - a named release (can be a pre-release)
@@ -25,15 +29,15 @@ pub struct Package {
     /// use `strip` on the binary
     pub strip: Option<bool>,
     /// When remote repo was last updated
-    pub timestamp: Option<DateTime<Utc>>,
-    /// Used by GitHub APIs to identify and download an asset
-    #[serde(skip)]
-    pub asset_id: Option<String>,
-    /// Used to name a downloaded archive, and to determine how to extract it
-    #[serde(skip)]
-    pub asset_name: Option<String>,
-    #[serde(skip)]
-    pub asset_path: Option<PathBuf>,
+    pub timestamp: DateTime<Utc>,
+    // /// Used by GitHub APIs to identify and download an asset
+    // #[serde(skip)]
+    // pub asset_id: Option<String>,
+    // /// Used to name a downloaded archive, and to determine how to extract it
+    // #[serde(skip)]
+    // pub asset_name: Option<String>,
+    // #[serde(skip)]
+    // pub asset_path: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -43,53 +47,58 @@ pub enum PackageMatchKind {
     SemVer,
 }
 
-impl Package {
-    pub fn create(repo_spec: &str, strip: Option<bool>) -> Self {
-        // let (repo, repo_name, requested) = parse_gh_repo_spec(repo_spec);
-        let (repo, requested) = parse_gh_repo_spec(repo_spec);
+// impl Package {
+//     // pub fn create(repo_spec: &str, strip: Option<bool>) -> Result<Self> {
+//     //     let (repo, repo_name, requested) = parse_gh_repo_spec(repo_spec)?;
 
-        Self {
-            // name: Some(repo_name),
-            repo,
-            tag: None,
-            requested,
-            strip,
-            timestamp: None,
-            asset_id: None,
-            asset_name: None,
-            asset_path: None,
-        }
-    }
+//     //     Ok(Self {
+//     //         name: Some(repo_name),
+//     //         repo,
+//     //         tag: None,
+//     //         requested,
+//     //         strip,
+//     //         timestamp: None,
+//     //         asset_id: None,
+//     //         asset_name: None,
+//     //         asset_path: None,
+//     //     })
+//     // }
 
-    pub fn match_kind(&self) -> PackageMatchKind {
-        if self.requested == "*" {
-            PackageMatchKind::Latest
-        } else if semver::VersionReq::parse(&self.requested).is_ok() {
-            PackageMatchKind::SemVer
-        } else {
-            PackageMatchKind::Exact
-        }
+// }
+
+pub fn match_kind(requested: &str) -> PackageMatchKind {
+    if requested == "*" {
+        PackageMatchKind::Latest
+    } else if semver::VersionReq::parse(requested).is_ok() {
+        PackageMatchKind::SemVer
+    } else {
+        PackageMatchKind::Exact
     }
 }
 
-// fn parse_gh_repo_name(str: &str) -> String {
-//     // TODO: add regex validation here, wrap in Result<_>?
-//     if str.contains('/') {
-//         str.to_owned()
-//     } else {
-//         format!("{0}/{0}", str)
-//     }
-// }
+pub fn read_packages_file(packages_file: &Path) -> Result<Vec<Package>> {
+    match fs::read_to_string(packages_file) {
+        Ok(s) => Ok(serde_json::from_str(&s).context(format!(
+            "malformed packages JSON file: {}",
+            packages_file.display()
+        ))?),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(vec![]),
+        Err(_e) => Err(anyhow!(format!(
+            "unable to read packages file: {}",
+            packages_file.display()
+        ))),
+    }
+}
 
-// fn parse_gh_repo_spec(str: &str) -> (String, String) {
-//     // TODO: add regex validation here, wrap in Result<_>?
-//     if str.contains('@') {
-//         let (name, tag) = str.split_at(str.find('@').unwrap());
-//         (
-//             parse_gh_repo_name(name),
-//             tag.trim_start_matches('@').to_owned(),
-//         )
-//     } else {
-//         (parse_gh_repo_name(str), "*".to_owned())
-//     }
-// }
+pub fn write_packages_file(packages_file: &Path, packages: &Vec<Package>) -> Result<()> {
+    fs::write(
+        packages_file,
+        serde_json::to_string(packages).context("serializing packages into JSON format")?,
+    )
+    .context(format!(
+        "writing packages file: {}",
+        packages_file.display()
+    ))?;
+
+    Ok(())
+}
