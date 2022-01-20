@@ -81,6 +81,8 @@ impl GitHub {
         user: &str,
         repo: &str,
         requested: &str,
+        asset_contains: Option<&str>,
+        asset_re: Option<&str>,
     ) -> Result<Option<Release>> {
         match match_kind(requested) {
             PackageMatchKind::Latest => {
@@ -88,21 +90,24 @@ impl GitHub {
                     "https://api.github.com/repos/{}/{}/releases/latest",
                     user, repo,
                 );
-                self.get_exact_release(&req_url, repo).await
+                self.find_exact_release(&req_url, repo, asset_contains, asset_re)
+                    .await
             }
             PackageMatchKind::Exact => {
                 let req_url = format!(
                     "https://api.github.com/repos/{}/{}/releases/tags/{}",
                     user, repo, requested,
                 );
-                self.get_exact_release(&req_url, repo).await
+                self.find_exact_release(&req_url, repo, asset_contains, asset_re)
+                    .await
             }
             PackageMatchKind::SemVer => {
                 let req_url = format!(
                     "https://api.github.com/repos/{}/{}/releases?per_page={}",
                     user, repo, GH_PER_PAGE,
                 );
-                self.find_release(&req_url, requested, repo).await
+                self.find_release(&req_url, requested, repo, asset_contains, asset_re)
+                    .await
             }
         }
     }
@@ -110,9 +115,15 @@ impl GitHub {
     /// Find a `Release` matching provided `Package`.
     /// When `force` is `true`, return `Release`, even if it's not newer than
     /// the one specified in `Package`
-    pub async fn find_update(&self, package: &Package, force: bool) -> Result<Option<Release>> {
+    pub async fn find_existing(&self, package: &Package, force: bool) -> Result<Option<Release>> {
         let res = self
-            .find_new(&package.user, &package.repo, &package.requested)
+            .find_new(
+                &package.user,
+                &package.repo,
+                &package.requested,
+                package.asset_contains.as_deref(),
+                package.asset_re.as_deref(),
+            )
             .await?;
 
         match res {
@@ -136,7 +147,13 @@ impl GitHub {
     }
 
     // TODO:add FilterKind = Contains | RegEx
-    async fn get_exact_release(&self, req_url: &str, filter: &str) -> Result<Option<Release>> {
+    async fn find_exact_release(
+        &self,
+        req_url: &str,
+        repo: &str,
+        asset_contains: Option<&str>,
+        asset_re: Option<&str>,
+    ) -> Result<Option<Release>> {
         let resp = self
             .client
             .get(req_url)
@@ -160,24 +177,37 @@ impl GitHub {
 
         match resp {
             GithubResponse::Ok(mut release) => {
+                let name_matcher: Box<dyn Fn(&str) -> bool> = if let Some(s) = asset_contains {
+                    Box::new(move |asset_name: &str| asset_name.contains(s))
+                } else if let Some(s) = asset_re {
+                    let re = regex::Regex::new(s).context("invalid asset name RegEx expression")?;
+                    Box::new(move |asset_name: &str| re.is_match(asset_name))
+                } else {
+                    Box::new(|asset_name: &str| asset_name.contains(repo))
+                };
+
                 release.assets.retain(|asset| {
                     util::matches_target(&asset.name)
                         && util::archive_kind(&asset.name) != util::ArchiveKind::Unsupported
-                        && asset.name.contains(filter)
+                        && name_matcher(&asset.name)
                 });
-                if !release.assets.is_empty() {
-                    Ok(Some(release))
-                } else {
-                    Ok(None)
+
+                match release.assets.len() {
+                    1 => Ok(Some(release)),
+                    0 => Ok(None),
+                    _ => {
+                        // dbg!(release.assets);
+                        let msg = if asset_re.is_some() {
+                            "multiple assets matched, consider modifying `--asset-regex-match` expression"
+                        } else if asset_contains.is_some() {
+                            "multiple assets matched, consider modifying `--asset-contains` filter or using a more powerful `--asset-regex-match`"
+                        } else {
+                            "multiple assets matched, consider using `--asset-contains` or `--asset-re` filter"
+                        };
+
+                        Err(anyhow!(msg))
+                    }
                 }
-                // match release.assets.len() {
-                //     1 => Ok(Some(release)),
-                //     0 => Ok(None),
-                //     _ => {
-                //         // dbg!(release.assets);
-                //         Err(anyhow!("multiple assets matched the filter, consider filing a bug report stating which repo it failed on"))
-                //     }
-                // }
             }
             GithubResponse::Err(err) => {
                 eprintln!("{}", err.message);
@@ -190,7 +220,9 @@ impl GitHub {
         &self,
         req_url: &str,
         requested: &str,
-        filter: &str,
+        repo: &str,
+        asset_contains: Option<&str>,
+        asset_re: Option<&str>,
     ) -> Result<Option<Release>> {
         let mut curr_page: usize = 1;
 
@@ -223,16 +255,37 @@ impl GitHub {
                 }
             }) {
                 if util::matches_semver(&release.tag_name, requested) {
+                    let name_matcher: Box<dyn Fn(&str) -> bool> = if let Some(s) = asset_contains {
+                        Box::new(move |asset_name: &str| asset_name.contains(s))
+                    } else if let Some(s) = asset_re {
+                        let re =
+                            regex::Regex::new(s).context("invalid asset name RegEx expression")?;
+                        Box::new(move |asset_name: &str| re.is_match(asset_name))
+                    } else {
+                        Box::new(|asset_name: &str| asset_name.contains(repo))
+                    };
+
                     release.assets.retain(|asset| {
                         util::matches_target(&asset.name)
                             && util::archive_kind(&asset.name) != util::ArchiveKind::Unsupported
-                            && asset.name.contains(filter)
+                            && name_matcher(&asset.name)
                     });
 
-                    if !release.assets.is_empty() {
-                        break 'outer Ok(Some(release));
-                    } else {
-                        break 'outer Ok(None);
+                    match release.assets.len() {
+                        1 => break 'outer Ok(Some(release)),
+                        0 => break 'outer Ok(None),
+                        _ => {
+                            // dbg!(release.assets);
+                            let msg = if asset_re.is_some() {
+                                "multiple assets matched, consider modifying `--asset-regex-match` expression"
+                            } else if asset_contains.is_some() {
+                                "multiple assets matched, consider modifying `--asset-contains` filter or using a more powerful `--asset-regex-match`"
+                            } else {
+                                "multiple assets matched, consider using `--asset-contains` or `--asset-re` filter"
+                            };
+
+                            break 'outer Err(anyhow!(msg));
+                        }
                     }
                 }
             }

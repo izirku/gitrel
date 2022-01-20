@@ -15,7 +15,7 @@ fn main() -> Result<()> {
 
     match args.command {
         // Commands::List => cmd::list(),
-        cli::Commands::Install(ref args) => rt_current_thread(cmd::install(args)),
+        cli::Commands::Install(args) => rt_current_thread(cmd::install(args)),
 
         // Commands::Update { bin_names, token } => {
         //     rt_current_thread(cmd::update(bin_names, token.as_ref()))

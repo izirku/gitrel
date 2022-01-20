@@ -4,10 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-/// Is a representation of a \[maybe installed\] package. Also serves as
-/// an interchange format between [ConfigurationManager](crate::business::conf::ConfigurationManager),
-/// [GitHub](crate::business::github::GitHub),
-/// and [Installer](crate::business::installer::Installer).
+/// Representation an installed package.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Package {
     /// user name
@@ -16,10 +13,6 @@ pub struct Package {
     pub repo: String,
     /// name binary to use
     pub bin_name: String,
-
-    // /// is `repo_user/repo_name`
-    // pub url: Url,
-
     /// *release tag* of an installed or a *matched* release
     pub tag: String,
     /// a requested *version*, can be one of:
@@ -31,6 +24,15 @@ pub struct Package {
     pub strip: Option<bool>,
     /// When remote repo was last updated
     pub timestamp: DateTime<Utc>,
+    /// asset name contais
+    pub asset_contains: Option<String>,
+    /// asset name matches RegEx
+    pub asset_re: Option<String>,
+    /// archive asset's entry name contains
+    pub entry_contains: Option<String>,
+    /// archive asset's entry name matches RegEx
+    pub entry_re: Option<String>,
+
     // /// Used by GitHub APIs to identify and download an asset
     // #[serde(skip)]
     // pub asset_id: Option<String>,

@@ -9,7 +9,7 @@ use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
 
 /// Install packages command
-pub async fn install(args: &InstallArgs) -> Result<()> {
+pub async fn install(args: InstallArgs) -> Result<()> {
     let packages_file = packages_file()?;
     let mut packages_installed = package::read_packages_file(&packages_file)?;
     let temp_dir = tempfile::tempdir().expect("creating a temp dir failed");
@@ -44,7 +44,16 @@ pub async fn install(args: &InstallArgs) -> Result<()> {
     pb.enable_steady_tick(220);
 
     // TODO: maybe write util::match_asset for asset resolution
-    match gh.find_new(&user, &repo, &requested_ver).await {
+    match gh
+        .find_new(
+            &user,
+            &repo,
+            &requested_ver,
+            args.asset_contains.as_deref(),
+            args.asset_re.as_deref(),
+        )
+        .await
+    {
         Ok(Some(release)) => {
             // pb.enable_steady_tick(220);
 
@@ -84,11 +93,15 @@ pub async fn install(args: &InstallArgs) -> Result<()> {
                     let package = Package {
                         user,
                         repo,
-                        tag: release.tag_name,
                         bin_name,
+                        tag: release.tag_name,
                         requested: requested_ver,
                         strip: args.strip.then(|| true),
                         timestamp: release.published_at,
+                        asset_contains: args.asset_contains,
+                        asset_re: args.asset_re,
+                        entry_contains: args.entry_contains,
+                        entry_re: args.entry_re,
                     };
 
                     if let Some(i) = already_installed {
