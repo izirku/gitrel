@@ -14,7 +14,7 @@ on:
 
 env:
   PROJECT_NAME: gitrel
-  PROJECT_DESC: "Install and manage binaries via GitHub releases"
+  PROJECT_DESC: "Install and update binaries via GitHub Releases API"
   PROJECT_AUTH: "Evgenii <zjekadev@gmail.com>"
 
 jobs:

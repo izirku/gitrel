@@ -33,13 +33,7 @@ pub async fn install(
         ArchiveKind::GZip => extract_gzip(asset_path, dest),
         ArchiveKind::BZip => extract_bzip(asset_path, dest),
         ArchiveKind::XZ => extract_xz(asset_path, dest),
-        ArchiveKind::Zip => extract_zip(
-            asset_path,
-            &bin_name,
-            dest,
-            entry_contains,
-            entry_re,
-        ),
+        ArchiveKind::Zip => extract_zip(asset_path, &bin_name, dest, entry_contains, entry_re),
         ArchiveKind::Tar(tar_kind) => extract_tar(
             asset_path,
             tar_kind,
@@ -270,7 +264,7 @@ fn archive_entry_match(
         let re = regex::Regex::new(s).context("invalid asset name RegEx expression")?;
         Ok(re.is_match(archive_entry))
     } else {
-        Ok(archive_entry.contains(file_name))
+        Ok(archive_entry == file_name)
     }
 }
 

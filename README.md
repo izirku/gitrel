@@ -1,6 +1,6 @@
 # GitRel
 
-> Install and manage binaries via GitHub releases
+> Install and update binaries via GitHub Releases API
 
 ## Usage Tips
 
@@ -43,36 +43,7 @@ created, and binaries are placed there.
 ## Configuration
 
 Configuration files are stored in `~/.config/gitrel` directory, regardless of
-an operating system kind. Currently, it only stores only the `packages.json` there.
-
-## Future Ideas and Improvements
-
-### TO-DO
-
-- [ ] implement a "packages fix-up" mechanism, where we can track _match patterns_ for some of the
-more common and unconventional repo releases
-- [ ] implement `uninstall`
-- [ ] implement `install --ensure`
-- [v] change repo layout to use *cargo workspaces*
-
-### Full Version
-
-- Use a proper GitHub App authorization instead of a *personal access token* (PAT)
-- GitLab support
-- JSON output of installed packages
-- Vulnerability scanning if possible
-
-### Lite Version
-
-Create a light version specifically designed to fit well into the automation
-pipelines, for DevOps, etc.
-
-- no configuration
-- no concurrency
-- no temp files (in memory decompression)
-- output to a specified or current directory
-- smaller list of dependencies
-- smaller size as a consequence
+an operating system kind. Currently, it only stores the `packages.json` there.
 
 # Disclamer
 
