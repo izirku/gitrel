@@ -1,11 +1,11 @@
+use std::{collections::HashSet, fs, path::PathBuf};
+
 use anyhow::{anyhow, Context, Result};
 use console::style;
 use directories::BaseDirs;
 use indicatif::{ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::{collections::HashSet, fs, path::PathBuf};
-use url::Url;
 
 include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
@@ -32,9 +32,6 @@ pub fn matches_target(str: &str) -> bool {
         }
     }
     true
-    //     rx::MATCH_OS.is_match(&self.name)
-    //         && rx::MATCH_ARCH.is_match(&self.name)
-    //         && rx::MATCH_ABI.is_match(&self.name)
 }
 
 pub fn matches_semver(tag_name: &str, semver: &str) -> bool {
@@ -47,17 +44,6 @@ pub fn matches_semver(tag_name: &str, semver: &str) -> bool {
     }
     false
 }
-
-// pub fn match_asset() {
-//     let selection: Vec<_> = release.assets.iter().map(|asset| &asset.name).collect();
-//     // dbg!(selection);
-//     let msel = Select::with_theme(&ColorfulTheme::default())
-//         .with_prompt("Multiple results found, select one")
-//         .items(&selection)
-//         .interact()
-//         .unwrap();
-//     dbg!(msel);
-// }
 
 #[derive(Debug, PartialEq)]
 pub enum ArchiveKind {
@@ -142,22 +128,15 @@ pub fn bin_dir() -> Result<PathBuf> {
     Ok(bin_dir)
 }
 
-pub fn bin_name(repo_url: &Url) -> String {
+#[inline]
+pub fn bin_name(name: &str) -> String {
     cfg_if::cfg_if! {
         if #[cfg(target_os="windows")] {
-            format!("{}.exe", repo_name(repo_url))
+            format!("{}.exe", name)
         } else {
-            repo_name(repo_url)
+            name.to_owned()
         }
     }
-}
-
-pub fn repo_name(repo_url: &Url) -> String {
-    let (_, repo_name) = repo_url
-        .path()
-        .split_at(repo_url.path().rfind('/').unwrap());
-    let repo_name = repo_name.trim_start_matches('/');
-    repo_name.to_lowercase()
 }
 
 /// Returns a tuple (user, repo, requested_version)
@@ -173,7 +152,6 @@ pub fn parse_gh_repo_spec(repo_spec: &str) -> Result<(String, String, String)> {
     // capture the "user/repo" or the "repo"
     let caps = RX_REPO.captures(repo_spec).context("parsing repo name")?;
     let cap = caps.get(1).context("capturing repo name")?.as_str();
-    // let cap = cap.as_str();
 
     // make sure we got the ("user/repo", "repo") tuple
     let (user, repo) = if cap.contains('/') {
@@ -183,74 +161,4 @@ pub fn parse_gh_repo_spec(repo_spec: &str) -> Result<(String, String, String)> {
     };
 
     Ok((user.to_owned(), repo.to_owned(), requested.to_owned()))
-
-    // let (url, repo_name)  = match Url::parse(repo) {
-    //     Ok(url) => {
-    //         let splits: Vec<_> = url.path().split_terminator('/').filter(|s| !s.is_empty()).collect();
-    //         if splits.len() != 2 {
-    //             return Err(anyhow!("incorrect repo url: {}", url.as_str()));
-    //         }
-    //         (url, splits[1])
-    //     }
-    //     Err(_) => {
-    //         let splits: Vec<_> = repo.split_terminator('/').filter(|s| !s.is_empty()).collect();
-    //         if splits.len() != 2 {
-    //             return Err(anyhow!("incorrect repo: {}", url.as_str()));
-    //         }
-    //         let url = Url::parse("https://github.com/").and_then(|url| {
-    //             if repo.contains('/') {
-    //                 url.join(repo)
-    //             } else {
-    //                 url.join(format!("{0}/{0}", repo).as_str())
-    //             }
-    //         };
-    //         (url, splits[1])
-    //     }
-    // };
-
-    // let repo = Url::parse(repo)
-    //     .or_else(|_| {
-    //         Url::parse("https://github.com/").and_then(|url| {
-    //             if repo.contains('/') {
-    //                 url.join(repo)
-    //             } else {
-    //                 url.join(format!("{0}/{0}", repo).as_str())
-    //             }
-    //         })
-    //     })
-    //     .unwrap();
-
-    // let (repo, name) = if repo.contains('/') {
-    //     (
-    //         repo.to_owned(),
-    //         repo.split_at(repo.find('/').unwrap())
-    //             .1
-    //             .get(1..)
-    //             .unwrap()
-    //             .to_lowercase(),
-    //     )
-    // } else {
-    //     (format!("{0}/{0}", repo), repo.to_lowercase())
-    // };
-
-    // (repo, name, requested.to_owned())
-    // (repo, requested.to_owned())
 }
-
-// this is imlemented as a Package method right now... should we move it out to here?
-// #[derive(Debug)]
-// pub enum MatchKind {
-//     Exact,
-//     Latest,
-//     SemVer,
-// }
-
-// pub fn match_kind(str: &str) -> MatchKind {
-//     if str == "*" {
-//         MatchKind::Latest
-//     } else if semver::VersionReq::parse(str).is_ok() {
-//         MatchKind::SemVer
-//     } else {
-//         MatchKind::Exact
-//     }
-// }

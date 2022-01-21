@@ -1,8 +1,9 @@
+use std::fs;
+use std::path::Path;
+
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::Path;
 
 /// Representation an installed package.
 #[derive(Debug, Deserialize, Serialize)]
@@ -32,15 +33,6 @@ pub struct Package {
     pub entry_contains: Option<String>,
     /// archive asset's entry name matches RegEx
     pub entry_re: Option<String>,
-
-    // /// Used by GitHub APIs to identify and download an asset
-    // #[serde(skip)]
-    // pub asset_id: Option<String>,
-    // /// Used to name a downloaded archive, and to determine how to extract it
-    // #[serde(skip)]
-    // pub asset_name: Option<String>,
-    // #[serde(skip)]
-    // pub asset_path: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -49,25 +41,6 @@ pub enum PackageMatchKind {
     Latest,
     SemVer,
 }
-
-// impl Package {
-//     // pub fn create(repo_spec: &str, strip: Option<bool>) -> Result<Self> {
-//     //     let (repo, repo_name, requested) = parse_gh_repo_spec(repo_spec)?;
-
-//     //     Ok(Self {
-//     //         name: Some(repo_name),
-//     //         repo,
-//     //         tag: None,
-//     //         requested,
-//     //         strip,
-//     //         timestamp: None,
-//     //         asset_id: None,
-//     //         asset_name: None,
-//     //         asset_path: None,
-//     //     })
-//     // }
-
-// }
 
 pub fn match_kind(requested: &str) -> PackageMatchKind {
     if requested == "*" {

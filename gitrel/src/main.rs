@@ -2,10 +2,12 @@ mod cli;
 mod cmd;
 mod domain;
 
-use crate::cli::Cli;
+use std::future::Future;
+
 use anyhow::Result;
 use clap::Parser;
-use std::future::Future;
+
+use crate::cli::Cli;
 
 fn main() -> Result<()> {
     let args = Cli::parse();
@@ -14,35 +16,13 @@ fn main() -> Result<()> {
     // Ok(())
 
     match args.command {
-        // Commands::List => cmd::list(),
         cli::Commands::Install(args) => rt_current_thread(cmd::install(args)),
-
-        // Commands::Update { bin_names, token } => {
-        //     rt_current_thread(cmd::update(bin_names, token.as_ref()))
-        // }
-
-        // Commands::Uninstall { bin_names } => rt_current_thread(cmd::uninstall(bin_names)),
-        _ => unimplemented!(),
+        cli::Commands::Update(args) => rt_current_thread(cmd::update(args)),
+        cli::Commands::Uninstall(args) => rt_current_thread(cmd::uninstall(args)),
+        cli::Commands::List => cmd::list(),
+        cli::Commands::Info(args) => rt_current_thread(cmd::info(args)),
     }
-    // match matches.subcommand() {
-    //     Some(("info", sub_m)) => rt_current_thread(cmd::info(sub_m)),
-    //     Some(("list", sub_m)) => cmd::list(sub_m),
-    //     Some(("install", sub_m)) => rt_current_thread(cmd::install(sub_m)),
-    //     Some(("update", sub_m)) => rt_current_thread(cmd::update(sub_m)),
-    //     Some(("uninstall", sub_m)) => rt_current_thread(cmd::uninstall(sub_m)),
-    //     _ => Ok(()),
-    // }
 }
-
-// repo,
-// token,
-// rename_binary,
-// strip,
-// force,
-// archive_contains,
-// archive_re,
-// entry_contains,
-// entry_re,
 
 #[inline]
 fn rt_current_thread<F: Future>(f: F) -> F::Output {

@@ -1,7 +1,9 @@
-use crate::domain::packages::Packages;
 use anyhow::Result;
+use clap::crate_name;
 use console::style;
 use tabled::{style::Line, Alignment, Column, Format, Modify, Object, Row, Style, Table, Tabled};
+
+use crate::domain::{package, util::packages_file};
 
 #[derive(Tabled)]
 struct ListLine<'a> {
@@ -17,26 +19,25 @@ struct ListLine<'a> {
 
 /// List installed packages
 pub fn list() -> Result<()> {
-    let packages = Packages::new()?;
+    let packages_file = packages_file()?;
+    let packages_installed = package::read_packages_file(&packages_file)?;
 
-    let pkgs = match packages.get() {
-        Ok(Some(packages)) => packages,
-        Ok(None) => {
-            println!("nothing is installed on this system");
-            return Ok(());
-        }
-        Err(e) => return Err(e),
-    };
+    if packages_installed.is_empty() {
+        println!(
+                "No managed installationts on this system. Use `{} install repo@[*|name|semver]...` to install package(s)",
+                crate_name!(),
+            );
+        return Ok(());
+    }
 
-    let mut list_lines = Vec::with_capacity(pkgs.len());
+    let mut list_lines = Vec::with_capacity(packages_installed.len());
 
-    let blank = "".to_string();
-    for (name, pkg_spec) in pkgs.iter() {
+    for pkg in &packages_installed {
         list_lines.push(ListLine {
-            bin: name,
-            requested: &pkg_spec.requested,
-            installed: pkg_spec.tag.as_ref().unwrap_or(&blank),
-            repository: format!("https://github.com/{}", &pkg_spec.repo),
+            bin: &pkg.bin_name,
+            requested: &pkg.requested,
+            installed: &pkg.tag,
+            repository: format!("https://github.com/{}/{}", &pkg.repo, &pkg.user),
         });
     }
 

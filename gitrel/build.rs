@@ -1,9 +1,10 @@
-use lazy_static::lazy_static;
 use std::collections::HashSet;
 use std::env;
 use std::fmt::Write;
 use std::fs;
 use std::path::Path;
+
+use lazy_static::lazy_static;
 
 fn main() {
     let tgt_os = platforms::target::TARGET_OS.as_str();
@@ -36,9 +37,6 @@ fn main() {
         exclude_set.remove(abi.as_str());
     }
 
-    // (x86_64|[a-zA-Z0-9]+)
-    // (x86_64|x86\-64|[a-zA-Z0-9]+)
-
     let out_dir = env::var_os("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("generated.rs");
 
@@ -58,7 +56,6 @@ fn main() {
 // combined values from:
 //   1. https://gist.github.com/asukakenji/f15ba7e588ac42795f421b48b8aede63
 //   2. rustup target list
-
 lazy_static! {
     pub static ref ALL_EXCLUDES: Vec<&'static str> = vec![
         // ===============================================

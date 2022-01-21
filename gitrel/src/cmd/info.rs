@@ -1,23 +1,37 @@
-use crate::domain::conf::ConfigurationManager;
+use anyhow::Result;
+
+use crate::cli::InfoArgs;
 use crate::domain::github::GitHub;
-use crate::domain::package::Package;
-use crate::Result;
-use clap::ArgMatches;
+use crate::domain::util;
 
-pub async fn info(matches: &ArgMatches) -> Result<()> {
-    let repo = matches.value_of("repo").unwrap(); // required arg, safe to unwrap
-    let mut pkg = Package::create(repo);
+pub async fn info(args: InfoArgs) -> Result<()> {
+    let (user, repo, requested_ver) = util::parse_gh_repo_spec(&args.repo_spec)?;
+    let gh = GitHub::create(args.token.as_ref());
 
-    let cm = ConfigurationManager::with_clap_matches(matches)?;
+    let release = gh
+        .find_new(
+            &user,
+            &repo,
+            &requested_ver,
+            args.asset_contains.as_deref(),
+            args.asset_re.as_deref(),
+        )
+        .await;
 
-    // we only want a single client, later will be used by GitLab APIs as well
-    let client = reqwest::Client::new();
+    match release {
+        Ok(Some(release)) => {
+            println!("\n         tag: {}", &release.tag_name);
+            println!("published at: {}", &release.published_at);
+            println!("   file name: {}", &release.assets[0].name);
+            println!("        size: {}", bytesize::to_string(release.assets[0].size, false));
+            println!("   downloads: {}", release.assets[0].download_count);
 
-    let gh = GitHub::create(&client, cm.token.as_ref(), cm.gh_per_page, cm.gh_max_pages);
-
-    if gh.find_match(&mut pkg, true).await? {
-        println!("found:\n\n{:#?}", &pkg);
+            Ok(())
+        }
+        Ok(None) => {
+            println!("not able to find a matching release");
+            Ok(())
+        }
+        Err(e) => Err(anyhow::Error::msg(e).context("operation failed")),
     }
-
-    Ok(())
 }

@@ -2,19 +2,21 @@ mod asset;
 mod release;
 mod response;
 
-use self::release::Release;
-use self::response::GithubResponse;
-use super::package::{match_kind, Package, PackageMatchKind};
-use super::util;
+use std::cmp;
+use std::path::PathBuf;
+
 use anyhow::{anyhow, Context, Result};
 use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::{header, Client, Method};
-use std::cmp;
-use std::path::PathBuf;
 use tempfile::TempDir;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+
+use self::release::Release;
+use self::response::GithubResponse;
+use super::package::{match_kind, Package, PackageMatchKind};
+use super::util;
 
 const GH_MAX_PAGES: usize = 5;
 const GH_PER_PAGE: usize = 25;
@@ -61,19 +63,12 @@ impl GitHub {
         }
         // dbg!(&api_headers);
 
-        // let client = ;
-
         Self {
             client: reqwest::Client::new(),
             api_headers,
             dl_headers,
         }
     }
-
-    // pub fn per_page(&mut self, per_page: u32) -> &mut Self {
-    //     self.per_page = per_page;
-    //     self
-    // }
 
     /// Find a `Release` matching provided parameters.
     pub async fn find_new(
@@ -115,7 +110,7 @@ impl GitHub {
     /// Find a `Release` matching provided `Package`.
     /// When `force` is `true`, return `Release`, even if it's not newer than
     /// the one specified in `Package`
-    pub async fn find_existing(&self, package: &Package, force: bool) -> Result<Option<Release>> {
+    pub async fn find_existing(&self, package: &Package) -> Result<Option<Release>> {
         let res = self
             .find_new(
                 &package.user,
@@ -128,15 +123,10 @@ impl GitHub {
 
         match res {
             Some(release) => {
-                // Under normal circumstances, i.e, when not forcing a re-install,
-                // or not ensuring existance, if tag of the release is the same,
-                // say "nightly", we want to compare its `published_at` date to
+                // we want to compare release's `published_at` date to
                 // what we have on record. If it's the same as ours, skip it.
                 // NB: Strict comparison for equality should be faster and enough.
-                if !force
-                    && release.tag_name == package.tag
-                    && release.published_at == package.timestamp
-                {
+                if release.tag_name == package.tag && release.published_at == package.timestamp {
                     Ok(None)
                 } else {
                     Ok(Some(release))
@@ -146,7 +136,6 @@ impl GitHub {
         }
     }
 
-    // TODO:add FilterKind = Contains | RegEx
     async fn find_exact_release(
         &self,
         req_url: &str,
@@ -174,7 +163,6 @@ impl GitHub {
             .context("parsing latest release response body")?;
 
         // dbg!(&resp);
-
         match resp {
             GithubResponse::Ok(mut release) => {
                 let name_matcher: Box<dyn Fn(&str) -> bool> = if let Some(s) = asset_contains {
@@ -298,7 +286,6 @@ impl GitHub {
         }
     }
 
-    // pub async fn download( &self, pb: &ProgressBar, pkg: &mut Package, temp_dir: &TempDir,) -> Result<(), AppError> {
     pub async fn download(
         &self,
         user: &str,
@@ -334,16 +321,9 @@ impl GitHub {
         let pb = ProgressBar::new(tot_size);
         pb.set_style(
             ProgressStyle::default_bar()
-                // .template("{spinner:.green} {msg}\n[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
-                // .progress_chars("#>-")
                 .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
-                // .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
                 .progress_chars("##-")
         );
-        // let repo_name = util::repo_name(&pkg.repo);
-        // let msg = format!("downloading: {}", style(&repo_name).green());
-        // pb.set_message(msg);
-        // pb.set_message("Downloading");
 
         let mut downloaded: u64 = 0;
         let mut stream = resp.bytes_stream();
@@ -367,11 +347,9 @@ impl GitHub {
             pb.set_position(new);
         }
 
-        // pb.finish_with_message(msg);
         pb.finish_and_clear();
         // dbg!(tot_size);
         // dbg!(downloaded);
-        // pb.set_position(tot_size);
 
         Ok(temp_file_name)
     }

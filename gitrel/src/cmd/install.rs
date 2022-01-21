@@ -1,12 +1,13 @@
+use anyhow::{anyhow, Result};
+use clap::crate_name;
+use console::style;
+use indicatif::{ProgressBar, ProgressStyle};
+
 use crate::cli::InstallArgs;
 use crate::domain::package::Package;
 use crate::domain::util::{self, message_fail};
 use crate::domain::{github::GitHub, util::packages_file};
 use crate::domain::{installer, package};
-use anyhow::{anyhow, Result};
-use clap::crate_name;
-use console::style;
-use indicatif::{ProgressBar, ProgressStyle};
 
 /// Install packages command
 pub async fn install(args: InstallArgs) -> Result<()> {
@@ -43,7 +44,6 @@ pub async fn install(args: InstallArgs) -> Result<()> {
     pb.set_message(format!("searching for {}", style(&repo).green()));
     pb.enable_steady_tick(220);
 
-    // TODO: maybe write util::match_asset for asset resolution
     match gh
         .find_new(
             &user,
@@ -55,9 +55,6 @@ pub async fn install(args: InstallArgs) -> Result<()> {
         .await
     {
         Ok(Some(release)) => {
-            // pb.enable_steady_tick(220);
-
-            // let selection: Vec<_> = release.assets.iter().map(|asset| &asset.name).collect();
             let (asset_id, asset_name) = (release.assets[0].id, release.assets[0].name.as_str());
 
             pb.set_message(format!("downloading {}", style(&repo).green()));
@@ -75,8 +72,16 @@ pub async fn install(args: InstallArgs) -> Result<()> {
                 repo.to_lowercase()
             };
 
-            let res =
-                installer::install(asset_name, &asset_path, &bin_dir, &bin_name, args.strip).await;
+            let res = installer::install(
+                asset_name,
+                &asset_path,
+                &bin_dir,
+                &bin_name,
+                args.strip,
+                args.entry_contains.as_deref(),
+                args.entry_re.as_deref(),
+            )
+            .await;
 
             match res {
                 Ok(bin_size) => {
@@ -86,7 +91,6 @@ pub async fn install(args: InstallArgs) -> Result<()> {
                         style(&repo).green(),
                         bytesize::to_string(bin_size, false),
                     );
-                    pb.disable_steady_tick();
                     pb.set_style(ProgressStyle::default_bar().template("{msg}"));
                     pb.finish_with_message(msg);
 
