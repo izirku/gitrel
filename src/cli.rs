@@ -50,24 +50,24 @@ pub struct InstallArgs {
     #[clap(short, long)]
     pub force: bool,
 
-    /// asset name contains
-    #[clap(short = 'a', long = "asset-contains", value_name = "TEXT")]
+    /// match asset name using glob pattern
+    #[clap(short = 'a', long = "asset-glob", value_name = "TEXT")]
     pub asset_glob: Option<String>,
 
-    /// asset name matches RegEx
+    /// match asset name using RegEx pattern
     #[clap(
         short = 'A',
-        long = "asset-regex-match",
+        long = "asset-regex",
         value_name = "REGEX",
         conflicts_with = "asset-glob"
     )]
     pub asset_re: Option<String>,
 
-    /// archive asset's entry name contains
+    /// match archived asset entry name using glob pattern
     #[clap(short = 'e', long = "entry-glob", value_name = "TEXT")]
     pub entry_glob: Option<String>,
 
-    /// archive asset's entry name matches RegEx
+    /// match archived asset entry name using RegEx pattern
     #[clap(
         short = 'E',
         long = "entry-regex-match",
@@ -104,20 +104,16 @@ pub struct InfoArgs {
     #[clap(short, long, env = "GITREL_TOKEN")]
     pub token: Option<String>,
 
-    /// rename binary before installation
-    #[clap(short, long = "rename", value_name = "NEW_NAME")]
-    pub rename_binary: Option<String>,
+    /// match asset name using glob pattern
+    #[clap(short = 'a', long = "asset-glob", value_name = "TEXT")]
+    pub asset_glob: Option<String>,
 
-    /// asset name exactly matches
-    #[clap(short = 'a', long = "asset-contains", value_name = "TEXT")]
-    pub asset_contains: Option<String>,
-
-    /// asset name matches RegEx
+    /// match asset name using RegEx pattern
     #[clap(
         short = 'A',
-        long = "asset-regex-match",
+        long = "asset-regex",
         value_name = "REGEX",
-        conflicts_with = "asset-contains"
+        conflicts_with = "asset-glob"
     )]
     pub asset_re: Option<String>,
 }

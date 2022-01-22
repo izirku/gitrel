@@ -103,9 +103,9 @@ pub async fn install(args: InstallArgs) -> Result<()> {
                         requested: requested_ver,
                         strip: args.strip.then(|| true),
                         timestamp: release.published_at,
-                        asset_contains: args.asset_glob,
+                        asset_glob: args.asset_glob,
                         asset_re: args.asset_re,
-                        entry_contains: args.entry_glob,
+                        entry_glob: args.entry_glob,
                         entry_re: args.entry_re,
                     };
 

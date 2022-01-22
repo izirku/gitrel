@@ -98,7 +98,7 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
                     bin_dir.as_path(),
                     &pkg.bin_name,
                     pkg.strip.unwrap_or_default(),
-                    pkg.asset_contains.as_deref(),
+                    pkg.asset_glob.as_deref(),
                     pkg.asset_re.as_deref(),
                 )
                 .await;

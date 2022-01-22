@@ -13,7 +13,7 @@ pub async fn info(args: InfoArgs) -> Result<()> {
             &user,
             &repo,
             &requested_ver,
-            args.asset_contains.as_deref(),
+            args.asset_glob.as_deref(),
             args.asset_re.as_deref(),
         )
         .await;
@@ -23,7 +23,10 @@ pub async fn info(args: InfoArgs) -> Result<()> {
             println!("\n         tag: {}", &release.tag_name);
             println!("published at: {}", &release.published_at);
             println!("   file name: {}", &release.assets[0].name);
-            println!("        size: {}", bytesize::to_string(release.assets[0].size, false));
+            println!(
+                "        size: {}",
+                bytesize::to_string(release.assets[0].size, false)
+            );
             println!("   downloads: {}", release.assets[0].download_count);
 
             Ok(())

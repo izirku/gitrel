@@ -61,7 +61,6 @@ impl GitHub {
                 header::HeaderValue::from_str(&token).unwrap(),
             );
         }
-        // dbg!(&api_headers);
 
         Self {
             client: reqwest::Client::new(),
@@ -76,7 +75,7 @@ impl GitHub {
         user: &str,
         repo: &str,
         requested: &str,
-        asset_contains: Option<&str>,
+        asset_glob: Option<&str>,
         asset_re: Option<&str>,
     ) -> Result<Option<Release>> {
         match match_kind(requested) {
@@ -85,7 +84,7 @@ impl GitHub {
                     "https://api.github.com/repos/{}/{}/releases/latest",
                     user, repo,
                 );
-                self.find_exact_release(&req_url, repo, asset_contains, asset_re)
+                self.find_exact_release(&req_url, repo, asset_glob, asset_re)
                     .await
             }
             PackageMatchKind::Exact => {
@@ -93,7 +92,7 @@ impl GitHub {
                     "https://api.github.com/repos/{}/{}/releases/tags/{}",
                     user, repo, requested,
                 );
-                self.find_exact_release(&req_url, repo, asset_contains, asset_re)
+                self.find_exact_release(&req_url, repo, asset_glob, asset_re)
                     .await
             }
             PackageMatchKind::SemVer => {
@@ -101,7 +100,7 @@ impl GitHub {
                     "https://api.github.com/repos/{}/{}/releases?per_page={}",
                     user, repo, GH_PER_PAGE,
                 );
-                self.find_release(&req_url, requested, repo, asset_contains, asset_re)
+                self.find_release(&req_url, requested, repo, asset_glob, asset_re)
                     .await
             }
         }
@@ -116,7 +115,7 @@ impl GitHub {
                 &package.user,
                 &package.repo,
                 &package.requested,
-                package.asset_contains.as_deref(),
+                package.asset_glob.as_deref(),
                 package.asset_re.as_deref(),
             )
             .await?;
@@ -140,7 +139,7 @@ impl GitHub {
         &self,
         req_url: &str,
         repo: &str,
-        asset_contains: Option<&str>,
+        asset_glob: Option<&str>,
         asset_re: Option<&str>,
     ) -> Result<Option<Release>> {
         let resp = self
@@ -151,8 +150,6 @@ impl GitHub {
             .await
             .context("fetching latest release")?;
 
-        // dbg!(&resp);
-        // dbg!(&resp.status());
         if resp.status().as_u16() == 404 {
             return Ok(None);
         }
@@ -162,21 +159,10 @@ impl GitHub {
             .await
             .context("parsing latest release response body")?;
 
-        // dbg!(&resp);
         match resp {
             GithubResponse::Ok(mut release) => {
-                let name_matcher: Box<dyn Fn(&str) -> bool> = if let Some(s) = asset_contains {
-                    Box::new(move |asset_name: &str| asset_name == s)
-                } else if let Some(s) = asset_re {
-                    let re = regex::Regex::new(s).context("invalid asset name RegEx expression")?;
-                    Box::new(move |asset_name: &str| re.is_match(asset_name))
-                } else {
-                    Box::new(|asset_name: &str| {
-                        util::matches_target(asset_name) && asset_name.contains(repo)
-                    })
-                };
-
-                release.assets.retain(|asset| name_matcher(&asset.name));
+                let asset_matcher = get_asset_name_matcher(repo, asset_glob, asset_re)?;
+                release.assets.retain(|asset| asset_matcher(&asset.name));
 
                 match release.assets.len() {
                     1 => Ok(Some(release)),
@@ -184,11 +170,11 @@ impl GitHub {
                     _ => {
                         // dbg!(release.assets);
                         let msg = if asset_re.is_some() {
-                            "multiple assets matched, consider modifying `--asset-regex-match` expression"
-                        } else if asset_contains.is_some() {
-                            "multiple assets matched, consider modifying `--asset-contains` filter or using a more powerful `--asset-regex-match`"
+                            "multiple assets matched, consider modifying `--asset-regex` expression"
+                        } else if asset_glob.is_some() {
+                            "multiple assets matched, consider modifying `--asset-glob` filter or using a more powerful `--asset-regex-match`"
                         } else {
-                            "multiple assets matched, consider using `--asset-contains` or `--asset-re` filter"
+                            "multiple assets matched, consider using `--asset-glob` or `--asset-regex` filter"
                         };
 
                         Err(anyhow!(msg))
@@ -207,14 +193,13 @@ impl GitHub {
         req_url: &str,
         requested: &str,
         repo: &str,
-        asset_contains: Option<&str>,
+        asset_glob: Option<&str>,
         asset_re: Option<&str>,
     ) -> Result<Option<Release>> {
+        let asset_matcher = get_asset_name_matcher(repo, asset_glob, asset_re)?;
         let mut curr_page: usize = 1;
 
         'outer: loop {
-            // dbg!(curr_page);
-
             let resp = self
                 .client
                 .request(Method::GET, req_url)
@@ -223,8 +208,6 @@ impl GitHub {
                 .send()
                 .await
                 .context("fething next page")?;
-
-            // dbg!(resp.status());
 
             if resp.status().as_u16() != 200 {
                 return Ok(None);
@@ -241,31 +224,18 @@ impl GitHub {
                 }
             }) {
                 if util::matches_semver(&release.tag_name, requested) {
-                    let name_matcher: Box<dyn Fn(&str) -> bool> = if let Some(s) = asset_contains {
-                        Box::new(move |asset_name: &str| asset_name == s)
-                    } else if let Some(s) = asset_re {
-                        let re =
-                            regex::Regex::new(s).context("invalid asset name RegEx expression")?;
-                        Box::new(move |asset_name: &str| re.is_match(asset_name))
-                    } else {
-                        Box::new(|asset_name: &str| {
-                            util::matches_target(asset_name) && asset_name.contains(repo)
-                        })
-                    };
-
-                    release.assets.retain(|asset| name_matcher(&asset.name));
+                    release.assets.retain(|asset| asset_matcher(&asset.name));
 
                     match release.assets.len() {
                         1 => break 'outer Ok(Some(release)),
                         0 => break 'outer Ok(None),
                         _ => {
-                            // dbg!(release.assets);
                             let msg = if asset_re.is_some() {
-                                "multiple assets matched, consider modifying `--asset-regex-match` expression"
-                            } else if asset_contains.is_some() {
-                                "multiple assets matched, consider modifying `--asset-contains` filter or using a more powerful `--asset-regex-match`"
+                                "multiple assets matched, consider modifying `--asset-regex` expression"
+                            } else if asset_glob.is_some() {
+                                "multiple assets matched, consider modifying `--asset-glob` filter or using a more powerful `--asset-regex`"
                             } else {
-                                "multiple assets matched, consider using `--asset-contains` or `--asset-re` filter"
+                                "multiple assets matched, consider using `--asset-glob` or `--asset-regex` filter"
                             };
 
                             break 'outer Err(anyhow!(msg));
@@ -276,7 +246,6 @@ impl GitHub {
 
             curr_page += 1;
             if curr_page > GH_MAX_PAGES {
-                // break Err(AppError::NotFound);
                 break Ok(None);
             }
         }
@@ -344,9 +313,29 @@ impl GitHub {
         }
 
         pb.finish_and_clear();
-        // dbg!(tot_size);
-        // dbg!(downloaded);
 
         Ok(temp_file_name)
+    }
+}
+
+fn get_asset_name_matcher(
+    repo: &str,
+    asset_glob: Option<&str>,
+    asset_re: Option<&str>,
+) -> Result<Box<dyn Fn(&str) -> bool>> {
+    if let Some(s) = asset_glob {
+        if s.contains('/') || s.contains("**") {
+            return Err(anyhow!("'/' or '**' are not allowed not allowed in a glob pattern matching a single file name"));
+        }
+        let glob = glob::Pattern::new(s).context("invalid asset name glob pattern")?;
+        Ok(Box::new(move |asset_name: &str| glob.matches(asset_name)))
+    } else if let Some(s) = asset_re {
+        let re = regex::Regex::new(s).context("invalid asset name RegEx pattern")?;
+        Ok(Box::new(move |asset_name: &str| re.is_match(asset_name)))
+    } else {
+        let repo = repo.to_owned();
+        Ok(Box::new(move |asset_name: &str| {
+            util::matches_target(asset_name) && asset_name.contains(&repo)
+        }))
     }
 }

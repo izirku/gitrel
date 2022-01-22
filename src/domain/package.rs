@@ -26,11 +26,11 @@ pub struct Package {
     /// When remote repo was last updated
     pub timestamp: DateTime<Utc>,
     /// asset name contais
-    pub asset_contains: Option<String>,
+    pub asset_glob: Option<String>,
     /// asset name matches RegEx
     pub asset_re: Option<String>,
     /// archive asset's entry name contains
-    pub entry_contains: Option<String>,
+    pub entry_glob: Option<String>,
     /// archive asset's entry name matches RegEx
     pub entry_re: Option<String>,
 }

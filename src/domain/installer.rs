@@ -11,11 +11,13 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
+use lazy_static::__Deref;
 use xz::read::XzDecoder;
 use zip::ZipArchive;
 
 use super::util::{self, ArchiveKind, TarKind};
 
+#[allow(clippy::too_many_arguments)]
 pub async fn install(
     repo: &str,
     asset_name: &str,
@@ -23,7 +25,7 @@ pub async fn install(
     bin_dir: &Path,
     bin_name: &str,
     strip: bool,
-    entry_contains: Option<&str>,
+    entry_glob: Option<&str>,
     entry_re: Option<&str>,
 ) -> Result<u64> {
     let bin_name = util::bin_name(bin_name);
@@ -34,15 +36,10 @@ pub async fn install(
         ArchiveKind::GZip => extract_gzip(asset_path, dest),
         ArchiveKind::BZip => extract_bzip(asset_path, dest),
         ArchiveKind::XZ => extract_xz(asset_path, dest),
-        ArchiveKind::Zip => extract_zip(asset_path, repo, dest, entry_contains, entry_re),
-        ArchiveKind::Tar(tar_kind) => extract_tar(
-            asset_path,
-            tar_kind,
-            repo,
-            dest,
-            entry_contains,
-            entry_re,
-        ),
+        ArchiveKind::Zip => extract_zip(asset_path, repo, dest, entry_glob, entry_re),
+        ArchiveKind::Tar(tar_kind) => {
+            extract_tar(asset_path, tar_kind, repo, dest, entry_glob, entry_re)
+        }
         ArchiveKind::Uncompressed => {
             let mut reader =
                 BufReader::new(File::open(asset_path).context("opening downloaded file")?);
@@ -145,27 +142,23 @@ fn extract_zip(
     archive: &Path,
     file_name: &str,
     dest: &Path,
-    entry_contains: Option<&str>,
+    entry_glob: Option<&str>,
     entry_re: Option<&str>,
 ) -> Result<u64> {
     let mut zip = ZipArchive::new(File::open(archive).context("opening a zip file")?)
         .context("reading a zip file")?;
+    let archive_entry_matcher = get_archive_entry_matcher(file_name, entry_glob, entry_re)?;
 
     // first we have to find an index of what we want, without decompression
     let mut idx_to_extract = None;
     for i in 0..zip.len() {
         let file_entry = zip.by_index_raw(i).context("indexing into a zip file")?;
-        let file_entry = file_entry
-            .enclosed_name()
-            .and_then(Path::file_name)
-            .and_then(OsStr::to_str);
+        let archive_entry = file_entry.enclosed_name();
 
-        if let Some(file_entry) = file_entry {
-            if let Ok(res) = archive_entry_match(file_entry, file_name, entry_contains, entry_re) {
-                if res {
-                    idx_to_extract = Some(i);
-                    break;
-                }
+        if let Some(archive_entry) = archive_entry {
+            if archive_entry_matcher(archive_entry)? {
+                idx_to_extract = Some(i);
+                break;
             }
         }
     }
@@ -201,15 +194,13 @@ fn extract_tar(
     tar_kind: TarKind,
     file_name: &str,
     dest: &Path,
-    entry_contains: Option<&str>,
+    entry_glob: Option<&str>,
     entry_re: Option<&str>,
 ) -> Result<u64> {
-    // dbg!(&tar_kind);
     let tarball_path = match tar_kind {
         TarKind::GZip => {
             let uncompressed = archive.with_extension("");
             extract_gzip(archive, &uncompressed)?;
-            // dbg!(&uncompressed);
             uncompressed
         }
         TarKind::BZip => {
@@ -227,22 +218,18 @@ fn extract_tar(
 
     let reader = BufReader::new(File::open(&tarball_path).context("reading a tarball")?);
     let mut tarball = tar::Archive::new(reader);
+    let archive_entry_matcher = get_archive_entry_matcher(file_name, entry_glob, entry_re)?;
 
     for entry in tarball.entries().context("reading tarball entries")? {
         let mut entry = entry.context("reading a tarball entry")?;
-        let file_entry = entry.path().context("getting a tarball entry path")?;
-        let file_entry = file_entry.file_name().and_then(OsStr::to_str);
+        let archive_entry = entry.path().context("getting a tarball entry path")?;
 
-        if let Some(file_entry) = file_entry {
-            if let Ok(res) = archive_entry_match(file_entry, file_name, entry_contains, entry_re) {
-                if res {
-                    entry.unpack(dest).context("unpacking a tarball entry")?;
-                    let bin_size = fs::metadata(dest)
-                        .context("getting installed binary metadata")?
-                        .len();
-                    return Ok(bin_size);
-                }
-            }
+        if archive_entry_matcher(archive_entry.deref())? {
+            entry.unpack(dest).context("unpacking a tarball entry")?;
+            let bin_size = fs::metadata(dest)
+                .context("getting installed binary metadata")?
+                .len();
+            return Ok(bin_size);
         }
     }
 
@@ -252,37 +239,38 @@ fn extract_tar(
     )))
 }
 
-fn archive_entry_match(
-    archive_entry: &str,
-    file_name: &str,
-    entry_contains: Option<&str>,
+fn get_archive_entry_matcher(
+    entry_exact: &str,
+    entry_glob: Option<&str>,
     entry_re: Option<&str>,
-) -> Result<bool> {
-    if let Some(s) = entry_contains {
-        Ok(archive_entry.contains(s))
+) -> Result<Box<dyn Fn(&Path) -> Result<bool>>> {
+    if let Some(s) = entry_glob {
+        // if s.contains('/') || s.contains("**") {
+        //     return Err(anyhow!("'/' or '**' are not allowed not allowed in a glob pattern matching a single file name"));
+        // }
+        let glob = glob::Pattern::new(s).context("invalid asset name glob pattern")?;
+        Ok(Box::new(move |archive_entry: &Path| {
+            Ok(glob.matches_path(archive_entry))
+        }))
     } else if let Some(s) = entry_re {
-        let re = regex::Regex::new(s).context("invalid asset name RegEx expression")?;
-        Ok(re.is_match(archive_entry))
+        let re = regex::Regex::new(s).context("invalid asset name RegEx pattern")?;
+        Ok(Box::new(move |archive_entry: &Path| {
+            if let Some(archive_entry) = archive_entry.to_str() {
+                Ok(re.is_match(archive_entry))
+            } else {
+                Err(anyhow!("unable to convert archive entry path to string"))
+            }
+        }))
     } else {
-        Ok(archive_entry == file_name)
+        let entry_exact = entry_exact.to_owned();
+        Ok(Box::new(move |archive_entry: &Path| {
+            if let Some(archive_entry_file) = archive_entry.file_name().and_then(OsStr::to_str) {
+                Ok(archive_entry_file == entry_exact)
+            } else {
+                Err(anyhow!(
+                    "unable to convert archive file entry path to string"
+                ))
+            }
+        }))
     }
 }
-
-// fn archive_entry_match(
-//     file_name: String,
-//     entry_contains: Option<String>,
-//     entry_re: Option<String>,
-// ) -> Result<Box<dyn Fn(&str) -> bool>> {
-//     if let Some(re) = &entry_re {
-//         let re = regex::Regex::new(re).context("invalid asset name RegEx expression")?;
-//         Ok(Box::new(|archive_entry: &str| re.is_match(archive_entry)))
-//     } else if let Some(s) = entry_contains {
-//         Ok(Box::new(move |archive_entry: &str| {
-//             archive_entry.contains(&s)
-//         }))
-//     } else {
-//         Ok(Box::new(move |archive_entry: &str| {
-//             archive_entry.contains(&file_name)
-//         }))
-//     }
-// }
