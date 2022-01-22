@@ -110,7 +110,6 @@ pub async fn install(args: InstallArgs) -> Result<()> {
                     };
 
                     if let Some(i) = already_installed {
-                        dbg!(i);
                         packages_installed[i] = package;
                     } else {
                         packages_installed.push(package);

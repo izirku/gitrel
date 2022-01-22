@@ -168,7 +168,6 @@ impl GitHub {
                     1 => Ok(Some(release)),
                     0 => Ok(None),
                     _ => {
-                        // dbg!(release.assets);
                         let msg = if asset_re.is_some() {
                             "multiple assets matched, consider modifying `--asset-regex` expression"
                         } else if asset_glob.is_some() {

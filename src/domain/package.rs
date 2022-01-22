@@ -22,16 +22,21 @@ pub struct Package {
     /// - `"<SEMVER string>"` - a *semver* to match against *release tag*
     pub requested: String,
     /// use `strip` on the binary
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub strip: Option<bool>,
     /// When remote repo was last updated
     pub timestamp: DateTime<Utc>,
     /// asset name contais
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub asset_glob: Option<String>,
     /// asset name matches RegEx
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub asset_re: Option<String>,
     /// archive asset's entry name contains
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub entry_glob: Option<String>,
     /// archive asset's entry name matches RegEx
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub entry_re: Option<String>,
 }
 
