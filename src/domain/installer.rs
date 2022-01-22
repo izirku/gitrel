@@ -1,38 +1,48 @@
-use super::package::Package;
-use super::util::{self, ArchiveKind, TarKind};
-use anyhow::{anyhow, Context, Result};
-use bzip2::read::BzDecoder;
-use flate2::read::GzDecoder;
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
-use std::io::{BufReader, Write};
+use std::io::BufReader;
 use std::path::Path;
 #[cfg(target_family = "unix")]
 use std::{
     fs::{set_permissions, Permissions},
     os::unix::fs::PermissionsExt,
 };
+
+use anyhow::{anyhow, Context, Result};
+use bzip2::read::BzDecoder;
+use flate2::read::GzDecoder;
+use lazy_static::__Deref;
 use xz::read::XzDecoder;
 use zip::ZipArchive;
-// use tokio::fs::File;
-// use tokio::io::{self, AsyncWriteExt};
 
-pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<u64> {
-    let file_name = util::bin_name(&pkg.repo);
-    let archive_path = pkg.asset_path.as_ref().unwrap().as_path();
-    let dest = bin_dir.join(&file_name);
+use super::util::{self, ArchiveKind, TarKind};
+
+#[allow(clippy::too_many_arguments)]
+pub async fn install(
+    repo: &str,
+    asset_name: &str,
+    asset_path: &Path,
+    bin_dir: &Path,
+    bin_name: &str,
+    strip: bool,
+    entry_glob: Option<&str>,
+    entry_re: Option<&str>,
+) -> Result<u64> {
+    let bin_name = util::bin_name(bin_name);
+    let dest = bin_dir.join(&bin_name);
     let dest = dest.as_path();
 
-    let bin_size = match util::archive_kind(pkg.asset_name.as_ref().unwrap()) {
-        ArchiveKind::GZip => extract_gzip(archive_path, dest),
-        ArchiveKind::BZip => extract_bzip(archive_path, dest),
-        ArchiveKind::XZ => extract_xz(archive_path, dest),
-        ArchiveKind::Zip => extract_zip(archive_path, &file_name, dest),
-        ArchiveKind::Tar(tar_kind) => extract_tar(archive_path, tar_kind, &file_name, dest),
+    let bin_size = match util::archive_kind(asset_name) {
+        ArchiveKind::GZip => extract_gzip(asset_path, dest),
+        ArchiveKind::BZip => extract_bzip(asset_path, dest),
+        ArchiveKind::XZ => extract_xz(asset_path, dest),
+        ArchiveKind::Zip => extract_zip(asset_path, repo, dest, entry_glob, entry_re),
+        ArchiveKind::Tar(tar_kind) => {
+            extract_tar(asset_path, tar_kind, repo, dest, entry_glob, entry_re)
+        }
         ArchiveKind::Uncompressed => {
-            let mut reader = BufReader::new(
-                File::open(pkg.asset_path.as_ref().unwrap()).context("opening downloaded file")?,
-            );
+            let mut reader =
+                BufReader::new(File::open(asset_path).context("opening downloaded file")?);
             let mut dest_file = OpenOptions::new()
                 .write(true)
                 .create(true)
@@ -49,52 +59,22 @@ pub async fn install(pkg: &Package, bin_dir: &Path, strip: bool) -> Result<u64> 
                 Err(_e) => Err(anyhow!("installing an uncompressed binary")),
             }
         }
-        ArchiveKind::Unsupported => unreachable!(),
     }?;
 
-    #[allow(clippy::if_same_then_else)]
-    #[allow(clippy::branches_sharing_code)]
-    if strip {
-        cfg_if::cfg_if! {
-            if #[cfg(target_family = "unix")] {
-                match set_permissions(dest, Permissions::from_mode(0o755)) {
-                    Ok(_) => {
-                        let output = std::process::Command::new("strip").arg(dest).output().context("stripping the executable")?;
-                        std::io::stdout().write_all(&output.stdout).context("writing to stdout")?;
-                        std::io::stderr().write_all(&output.stderr).context("writing to stderr")?;
-                        let bin_size = fs::metadata(dest).context("getting installed binary metadata")?.len();
-                        Ok(bin_size)
-                    },
-                    Err(_e) => Err(anyhow!("setting the executable bit")),
-                }
+    cfg_if::cfg_if! {
+        if #[cfg(target_family = "unix")] {
+            set_permissions(dest, Permissions::from_mode(0o755)).context("setting the execution bit")?;
+            if strip {
+                std::process::Command::new("strip").arg(dest).output().context("stripping the executable")?;
+                let bin_size = fs::metadata(dest).context("getting installed binary metadata")?.len();
+                Ok(bin_size)
             } else {
                 Ok(bin_size)
             }
+        } else {
+            Ok(bin_size)
         }
-    } else {
-        Ok(bin_size)
     }
-
-    // cfg_if::cfg_if! {
-    //     if #[cfg(target_family = "unix")] {
-    //         match set_permissions(dest, Permissions::from_mode(0o755)) {
-    //             Ok(_) => {
-    //                 if strip {
-    //                     let output = std::process::Command::new("strip").arg(dest).output().context("stripping the executable")?;
-    //                     std::io::stdout().write_all(&output.stdout).context("writing to stdout")?;
-    //                     std::io::stderr().write_all(&output.stderr).context("writing to stderr")?;
-    //                     let bin_size = fs::metadata(dest).context("getting installed binary metadata")?.len();
-    //                     Ok(bin_size)
-    //                 } else {
-    //                     Ok(bin_size)
-    //                 }
-    //             },
-    //             Err(_e) => Err(anyhow!("setting the executable bit")),
-    //         }
-    //     } else {
-    //         Ok(bin_size)
-    //     }
-    // }
 }
 
 // TODO: maybe use flate2's tokio stuff?
@@ -158,22 +138,27 @@ fn extract_xz(archive: &Path, dest: &Path) -> Result<u64> {
     }
 }
 
-fn extract_zip(archive: &Path, file_name: &str, dest: &Path) -> Result<u64> {
+fn extract_zip(
+    archive: &Path,
+    file_name: &str,
+    dest: &Path,
+    entry_glob: Option<&str>,
+    entry_re: Option<&str>,
+) -> Result<u64> {
     let mut zip = ZipArchive::new(File::open(archive).context("opening a zip file")?)
         .context("reading a zip file")?;
+    let archive_entry_matcher = get_archive_entry_matcher(file_name, entry_glob, entry_re)?;
 
     // first we have to find an index of what we want, without decompression
     let mut idx_to_extract = None;
     for i in 0..zip.len() {
-        let zfile = zip.by_index_raw(i).context("indexing into a zip file")?;
+        let file_entry = zip.by_index_raw(i).context("indexing into a zip file")?;
+        let archive_entry = file_entry.enclosed_name();
 
-        if let Some(zname) = zfile
-            .enclosed_name()
-            .and_then(Path::file_name)
-            .and_then(OsStr::to_str)
-        {
-            if zname == file_name {
+        if let Some(archive_entry) = archive_entry {
+            if archive_entry_matcher(archive_entry)? {
                 idx_to_extract = Some(i);
+                break;
             }
         }
     }
@@ -197,19 +182,25 @@ fn extract_zip(archive: &Path, file_name: &str, dest: &Path) -> Result<u64> {
             Err(_e) => Err(anyhow!("decompressing a zip file")),
         };
     }
+
     Err(anyhow!(format!(
         "binary `{}` not found inside the zip archive",
         file_name
     )))
 }
 
-fn extract_tar(archive: &Path, tar_kind: TarKind, file_name: &str, dest: &Path) -> Result<u64> {
-    // dbg!(&tar_kind);
+fn extract_tar(
+    archive: &Path,
+    tar_kind: TarKind,
+    file_name: &str,
+    dest: &Path,
+    entry_glob: Option<&str>,
+    entry_re: Option<&str>,
+) -> Result<u64> {
     let tarball_path = match tar_kind {
         TarKind::GZip => {
             let uncompressed = archive.with_extension("");
             extract_gzip(archive, &uncompressed)?;
-            // dbg!(&uncompressed);
             uncompressed
         }
         TarKind::BZip => {
@@ -225,14 +216,15 @@ fn extract_tar(archive: &Path, tar_kind: TarKind, file_name: &str, dest: &Path) 
         TarKind::Uncompressed => archive.to_path_buf(),
     };
 
-    let reader = BufReader::new(File::open(tarball_path).context("reading a tarball")?);
-    // let reader = File::open(tarball_path).context("reading a tarball")?;
+    let reader = BufReader::new(File::open(&tarball_path).context("reading a tarball")?);
     let mut tarball = tar::Archive::new(reader);
+    let archive_entry_matcher = get_archive_entry_matcher(file_name, entry_glob, entry_re)?;
 
     for entry in tarball.entries().context("reading tarball entries")? {
         let mut entry = entry.context("reading a tarball entry")?;
-        let entry_path = entry.path().context("getting a tarball entry path")?;
-        if entry_path.file_name().and_then(OsStr::to_str).unwrap() == file_name {
+        let archive_entry = entry.path().context("getting a tarball entry path")?;
+
+        if archive_entry_matcher(archive_entry.deref())? {
             entry.unpack(dest).context("unpacking a tarball entry")?;
             let bin_size = fs::metadata(dest)
                 .context("getting installed binary metadata")?
@@ -245,4 +237,40 @@ fn extract_tar(archive: &Path, tar_kind: TarKind, file_name: &str, dest: &Path) 
         "binary `{}` not found inside the tarball",
         file_name
     )))
+}
+
+fn get_archive_entry_matcher(
+    entry_exact: &str,
+    entry_glob: Option<&str>,
+    entry_re: Option<&str>,
+) -> Result<Box<dyn Fn(&Path) -> Result<bool>>> {
+    if let Some(s) = entry_glob {
+        // if s.contains('/') || s.contains("**") {
+        //     return Err(anyhow!("'/' or '**' are not allowed not allowed in a glob pattern matching a single file name"));
+        // }
+        let glob = glob::Pattern::new(s).context("invalid asset name glob pattern")?;
+        Ok(Box::new(move |archive_entry: &Path| {
+            Ok(glob.matches_path(archive_entry))
+        }))
+    } else if let Some(s) = entry_re {
+        let re = regex::Regex::new(s).context("invalid asset name RegEx pattern")?;
+        Ok(Box::new(move |archive_entry: &Path| {
+            if let Some(archive_entry) = archive_entry.to_str() {
+                Ok(re.is_match(archive_entry))
+            } else {
+                Err(anyhow!("unable to convert archive entry path to string"))
+            }
+        }))
+    } else {
+        let entry_exact = entry_exact.to_owned();
+        Ok(Box::new(move |archive_entry: &Path| {
+            if let Some(archive_entry_file) = archive_entry.file_name().and_then(OsStr::to_str) {
+                Ok(archive_entry_file == entry_exact)
+            } else {
+                Err(anyhow!(
+                    "unable to convert archive file entry path to string"
+                ))
+            }
+        }))
+    }
 }

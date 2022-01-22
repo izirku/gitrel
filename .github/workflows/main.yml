@@ -3,7 +3,7 @@ name: CI
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    # branches: [ main ]
+    branches: [ main ]
     tags:
       - v*
   # pull_request:
@@ -14,7 +14,7 @@ on:
 
 env:
   PROJECT_NAME: gitrel
-  PROJECT_DESC: "Install and manage binaries via GitHub releases"
+  PROJECT_DESC: "Install and update binaries via GitHub Releases API"
   PROJECT_AUTH: "Evgenii <zjekadev@gmail.com>"
 
 jobs:
@@ -47,22 +47,9 @@ jobs:
         EXE_suffix="" ; case ${{ matrix.job.target }} in *-pc-windows-*) EXE_suffix=".exe" ;; esac;
         echo set-output name=EXE_suffix::${EXE_suffix}
         echo ::set-output name=EXE_suffix::${EXE_suffix}
-        # parse commit reference info
-        REF_NAME=${GITHUB_REF#refs/*/}
-        unset REF_BRANCH ; case ${GITHUB_REF} in refs/heads/*) REF_BRANCH=${GITHUB_REF#refs/heads/} ;; esac;
-        unset REF_TAG ; case ${GITHUB_REF} in refs/tags/*) REF_TAG=${GITHUB_REF#refs/tags/} ;; esac;
-        REF_SHAS=${GITHUB_SHA:0:8}
-        echo set-output name=REF_NAME::${REF_NAME}
-        echo set-output name=REF_BRANCH::${REF_BRANCH}
-        echo set-output name=REF_TAG::${REF_TAG}
-        echo set-output name=REF_SHAS::${REF_SHAS}
-        echo ::set-output name=REF_NAME::${REF_NAME}
-        echo ::set-output name=REF_BRANCH::${REF_BRANCH}
-        echo ::set-output name=REF_TAG::${REF_TAG}
-        echo ::set-output name=REF_SHAS::${REF_SHAS}
         # package name
         PKG_suffix=".tar.gz" ; case ${{ matrix.job.target }} in *-pc-windows-*) PKG_suffix=".zip" ;; esac;
-        PKG_BASENAME=${PROJECT_NAME}-${REF_TAG:-$REF_SHAS}-${{ matrix.job.target }}
+        PKG_BASENAME=${PROJECT_NAME}-${{ matrix.job.target }}
         PKG_NAME=${PKG_BASENAME}${PKG_suffix}
         echo set-output name=PKG_suffix::${PKG_suffix}
         echo set-output name=PKG_BASENAME::${PKG_BASENAME}
@@ -70,10 +57,6 @@ jobs:
         echo ::set-output name=PKG_suffix::${PKG_suffix}
         echo ::set-output name=PKG_BASENAME::${PKG_BASENAME}
         echo ::set-output name=PKG_NAME::${PKG_NAME}
-        # deployable tag? (ie, leading "vM" or "M"; M == version number)
-        unset DEPLOY ; if [[ $REF_TAG =~ ^[vV]?[0-9].* ]]; then DEPLOY='true' ; fi
-        echo set-output name=DEPLOY::${DEPLOY:-<empty>/false}
-        echo ::set-output name=DEPLOY::${DEPLOY}
         # * strip executable?
         STRIP="strip" ; case ${{ matrix.job.target }} in *-pc-windows-msvc) STRIP="" ;; esac;
         echo set-output name=STRIP::${STRIP}
@@ -125,7 +108,6 @@ jobs:
         popd >/dev/null
     - name: Publish
       uses: softprops/action-gh-release@v1
-      if: steps.vars.outputs.DEPLOY
       with:
         files: |
           ${{ steps.vars.outputs.STAGING }}/${{ steps.vars.outputs.PKG_NAME }}

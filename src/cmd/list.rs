@@ -1,8 +1,9 @@
-use crate::domain::conf::ConfigurationManager;
 use anyhow::Result;
-use clap::ArgMatches;
+use clap::crate_name;
 use console::style;
 use tabled::{style::Line, Alignment, Column, Format, Modify, Object, Row, Style, Table, Tabled};
+
+use crate::domain::{package, util::packages_file};
 
 #[derive(Tabled)]
 struct ListLine<'a> {
@@ -17,31 +18,31 @@ struct ListLine<'a> {
 }
 
 /// List installed packages
-pub fn list(matches: &ArgMatches) -> Result<()> {
-    let cm = ConfigurationManager::with_clap_matches(matches)?;
-    let packages = match cm.get_packages() {
-        Ok(Some(packages)) => packages,
-        Ok(None) => {
-            println!("nothing is installed on this system");
-            return Ok(());
-        }
-        Err(e) => return Err(e),
-    };
+pub fn list() -> Result<()> {
+    let packages_file = packages_file()?;
+    let packages_installed = package::read_packages_file(&packages_file)?;
 
-    let mut list_lines = Vec::with_capacity(packages.len());
+    if packages_installed.is_empty() {
+        println!(
+                "No managed installationts on this system. Use `{} install repo@[*|name|semver]...` to install package(s)",
+                crate_name!(),
+            );
+        return Ok(());
+    }
 
-    let blank = "".to_string();
-    for (name, pkg_spec) in packages.iter() {
+    let mut list_lines = Vec::with_capacity(packages_installed.len());
+
+    for pkg in &packages_installed {
         list_lines.push(ListLine {
-            bin: name,
-            requested: &pkg_spec.requested,
-            installed: pkg_spec.tag.as_ref().unwrap_or(&blank),
-            repository: format!("https://github.com/{}", &pkg_spec.repo),
+            bin: &pkg.bin_name,
+            requested: &pkg.requested,
+            installed: &pkg.tag,
+            repository: format!("https://github.com/{}/{}", &pkg.user, &pkg.repo),
         });
     }
 
     let table = Table::new(&list_lines)
-        .with(Style::noborder().header(Some(Line::short('-', '+'))))
+        .with(Style::NO_BORDER.header(Some(Line::short('-', '+'))))
         .with(
             Modify::new(Column(..1))
                 .with(Alignment::left())
@@ -63,12 +64,7 @@ pub fn list(matches: &ArgMatches) -> Result<()> {
                 .with(Format(|s| style(s).blue().to_string())),
         )
         .with(Modify::new(Column(3..).not(Row(..1))).with(Format(|s| {
-            format!(
-                "{}{}{}",
-                style('[').cyan().to_string(),
-                s,
-                style(']').cyan().to_string()
-            )
+            format!("{}{}{}", style('[').cyan(), s, style(']').cyan())
         })));
 
     println!("{}", table);
