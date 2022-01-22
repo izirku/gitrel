@@ -166,19 +166,17 @@ impl GitHub {
         match resp {
             GithubResponse::Ok(mut release) => {
                 let name_matcher: Box<dyn Fn(&str) -> bool> = if let Some(s) = asset_contains {
-                    Box::new(move |asset_name: &str| asset_name.contains(s))
+                    Box::new(move |asset_name: &str| asset_name == s)
                 } else if let Some(s) = asset_re {
                     let re = regex::Regex::new(s).context("invalid asset name RegEx expression")?;
                     Box::new(move |asset_name: &str| re.is_match(asset_name))
                 } else {
-                    Box::new(|asset_name: &str| asset_name.contains(repo))
+                    Box::new(|asset_name: &str| {
+                        util::matches_target(asset_name) && asset_name.contains(repo)
+                    })
                 };
 
-                release.assets.retain(|asset| {
-                    util::matches_target(&asset.name)
-                        && util::archive_kind(&asset.name) != util::ArchiveKind::Unsupported
-                        && name_matcher(&asset.name)
-                });
+                release.assets.retain(|asset| name_matcher(&asset.name));
 
                 match release.assets.len() {
                     1 => Ok(Some(release)),
@@ -244,20 +242,18 @@ impl GitHub {
             }) {
                 if util::matches_semver(&release.tag_name, requested) {
                     let name_matcher: Box<dyn Fn(&str) -> bool> = if let Some(s) = asset_contains {
-                        Box::new(move |asset_name: &str| asset_name.contains(s))
+                        Box::new(move |asset_name: &str| asset_name == s)
                     } else if let Some(s) = asset_re {
                         let re =
                             regex::Regex::new(s).context("invalid asset name RegEx expression")?;
                         Box::new(move |asset_name: &str| re.is_match(asset_name))
                     } else {
-                        Box::new(|asset_name: &str| asset_name.contains(repo))
+                        Box::new(|asset_name: &str| {
+                            util::matches_target(asset_name) && asset_name.contains(repo)
+                        })
                     };
 
-                    release.assets.retain(|asset| {
-                        util::matches_target(&asset.name)
-                            && util::archive_kind(&asset.name) != util::ArchiveKind::Unsupported
-                            && name_matcher(&asset.name)
-                    });
+                    release.assets.retain(|asset| name_matcher(&asset.name));
 
                     match release.assets.len() {
                         1 => break 'outer Ok(Some(release)),

@@ -37,7 +37,7 @@ pub fn list() -> Result<()> {
             bin: &pkg.bin_name,
             requested: &pkg.requested,
             installed: &pkg.tag,
-            repository: format!("https://github.com/{}/{}", &pkg.repo, &pkg.user),
+            repository: format!("https://github.com/{}/{}", &pkg.user, &pkg.repo),
         });
     }
 

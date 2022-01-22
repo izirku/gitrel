@@ -86,6 +86,5 @@ pub async fn uninstall(args: UninstallArgs) -> Result<()> {
         write_packages_file(&packages_file, &packages_installed_new)?;
     }
 
-    println!("\nUninstalled {}.", uninstalled_ct);
     Ok(())
 }

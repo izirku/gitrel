@@ -53,7 +53,6 @@ pub enum ArchiveKind {
     Zip,
     Tar(TarKind),
     Uncompressed,
-    Unsupported,
 }
 
 #[derive(Debug, PartialEq)]
@@ -65,12 +64,10 @@ pub enum TarKind {
 }
 
 pub fn archive_kind(str: &str) -> ArchiveKind {
-    if str.rfind('.').is_none() {
-        return ArchiveKind::Uncompressed;
-    }
-
     // order does matter
-    if str.ends_with(".zip") {
+    if str.rfind('.').is_none() {
+        ArchiveKind::Uncompressed
+    } else if str.ends_with(".zip") {
         ArchiveKind::Zip
     } else if str.ends_with(".tar.gz") || str.ends_with(".tgz") {
         ArchiveKind::Tar(TarKind::GZip)
@@ -87,7 +84,12 @@ pub fn archive_kind(str: &str) -> ArchiveKind {
     } else if str.ends_with(".xz") {
         ArchiveKind::XZ
     } else {
-        ArchiveKind::Unsupported
+        // NB: some names contain '.' in them, that are not necessary the archive extensions.
+        // example: https://github.com/cloudfoundry/bosh-bootloader/releases/tag/v8.4.83
+        // has an uncommpressed asset, named `bbl-v8.4.83-osx`.
+        // Threfore, it's safer to treat such files as uncompressed, even though we might get
+        // some exotic archiver
+        ArchiveKind::Uncompressed
     }
 }
 

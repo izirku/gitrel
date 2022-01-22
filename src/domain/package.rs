@@ -69,7 +69,7 @@ pub fn read_packages_file(packages_file: &Path) -> Result<Vec<Package>> {
 pub fn write_packages_file(packages_file: &Path, packages: &[Package]) -> Result<()> {
     fs::write(
         packages_file,
-        serde_json::to_string(packages).context("serializing packages into JSON format")?,
+        serde_json::to_string_pretty(packages).context("serializing packages into JSON format")?,
     )
     .context(format!(
         "writing packages file: {}",

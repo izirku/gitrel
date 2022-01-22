@@ -92,6 +92,7 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
 
                 pb.set_message(format!("updating {}", style(&pkg.bin_name).green()));
                 let res = installer::install(
+                    &pkg.repo.to_lowercase(),
                     &release.assets[0].name,
                     &asset_path,
                     bin_dir.as_path(),
@@ -129,7 +130,7 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
             Ok(None) => {
                 let msg = format!(
                     "{} already up to date {}",
-                    style('-').green(),
+                    style('✓').green(),
                     style(&pkg.bin_name).green(),
                 );
                 // pb.disable_steady_tick();

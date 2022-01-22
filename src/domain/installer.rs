@@ -17,6 +17,7 @@ use zip::ZipArchive;
 use super::util::{self, ArchiveKind, TarKind};
 
 pub async fn install(
+    repo: &str,
     asset_name: &str,
     asset_path: &Path,
     bin_dir: &Path,
@@ -33,11 +34,11 @@ pub async fn install(
         ArchiveKind::GZip => extract_gzip(asset_path, dest),
         ArchiveKind::BZip => extract_bzip(asset_path, dest),
         ArchiveKind::XZ => extract_xz(asset_path, dest),
-        ArchiveKind::Zip => extract_zip(asset_path, &bin_name, dest, entry_contains, entry_re),
+        ArchiveKind::Zip => extract_zip(asset_path, repo, dest, entry_contains, entry_re),
         ArchiveKind::Tar(tar_kind) => extract_tar(
             asset_path,
             tar_kind,
-            &bin_name,
+            repo,
             dest,
             entry_contains,
             entry_re,
@@ -61,7 +62,6 @@ pub async fn install(
                 Err(_e) => Err(anyhow!("installing an uncompressed binary")),
             }
         }
-        ArchiveKind::Unsupported => unreachable!(),
     }?;
 
     cfg_if::cfg_if! {

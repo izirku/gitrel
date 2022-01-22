@@ -17,6 +17,7 @@ fn main() {
     if tgt_os == "macos" {
         exclude_set.remove("apple");
         exclude_set.remove("darwin");
+        exclude_set.remove("osx");
     }
     if tgt_os == "windows" {
         exclude_set.remove("win64");
@@ -71,6 +72,7 @@ lazy_static! {
         "android",
         "apple",
         "darwin",
+        "osx",
         "dragonfly",
         "freebsd",
         "fuchsia",

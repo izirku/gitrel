@@ -49,7 +49,7 @@ pub async fn install(args: InstallArgs) -> Result<()> {
             &user,
             &repo,
             &requested_ver,
-            args.asset_contains.as_deref(),
+            args.asset_glob.as_deref(),
             args.asset_re.as_deref(),
         )
         .await
@@ -73,12 +73,13 @@ pub async fn install(args: InstallArgs) -> Result<()> {
             };
 
             let res = installer::install(
+                &repo.to_lowercase(),
                 asset_name,
                 &asset_path,
                 &bin_dir,
                 &bin_name,
                 args.strip,
-                args.entry_contains.as_deref(),
+                args.entry_glob.as_deref(),
                 args.entry_re.as_deref(),
             )
             .await;
@@ -102,9 +103,9 @@ pub async fn install(args: InstallArgs) -> Result<()> {
                         requested: requested_ver,
                         strip: args.strip.then(|| true),
                         timestamp: release.published_at,
-                        asset_contains: args.asset_contains,
+                        asset_contains: args.asset_glob,
                         asset_re: args.asset_re,
-                        entry_contains: args.entry_contains,
+                        entry_contains: args.entry_glob,
                         entry_re: args.entry_re,
                     };
 

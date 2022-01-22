@@ -52,27 +52,27 @@ pub struct InstallArgs {
 
     /// asset name contains
     #[clap(short = 'a', long = "asset-contains", value_name = "TEXT")]
-    pub asset_contains: Option<String>,
+    pub asset_glob: Option<String>,
 
     /// asset name matches RegEx
     #[clap(
         short = 'A',
         long = "asset-regex-match",
         value_name = "REGEX",
-        conflicts_with = "asset-contains"
+        conflicts_with = "asset-glob"
     )]
     pub asset_re: Option<String>,
 
     /// archive asset's entry name contains
-    #[clap(short = 'e', long = "entry-contains", value_name = "TEXT")]
-    pub entry_contains: Option<String>,
+    #[clap(short = 'e', long = "entry-glob", value_name = "TEXT")]
+    pub entry_glob: Option<String>,
 
     /// archive asset's entry name matches RegEx
     #[clap(
         short = 'E',
         long = "entry-regex-match",
         value_name = "REGEX",
-        conflicts_with = "entry-contains"
+        conflicts_with = "entry-glob"
     )]
     pub entry_re: Option<String>,
 }
@@ -108,15 +108,7 @@ pub struct InfoArgs {
     #[clap(short, long = "rename", value_name = "NEW_NAME")]
     pub rename_binary: Option<String>,
 
-    /// minimize by using `strip`
-    #[clap(short, long)]
-    pub strip: bool,
-
-    /// force [re]install
-    #[clap(short, long)]
-    pub force: bool,
-
-    /// asset name contains
+    /// asset name exactly matches
     #[clap(short = 'a', long = "asset-contains", value_name = "TEXT")]
     pub asset_contains: Option<String>,
 
