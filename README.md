@@ -1,3 +1,9 @@
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/izirku/gitrel/CI)
+[![license](http://img.shields.io/badge/license-Apache%20v2-blue.svg)](https://raw.githubusercontent.com/izirku/gitrel/master/LICENSE-APACHE)
+[![license](http://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/izirku/gitrel/master/LICENSE-MIT)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?hosted_button_id=ZKZETMDARNXN6)
+[![Buy me a coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg)](https://ko-fi.com/izirku)
+
 # GitRel
 
 > Install and update binaries via GitHub Releases API
@@ -70,6 +76,3 @@ an operating system kind. Currently, it only stores the `packages.json` there.
 > Author and contributors bear no responsibilities whatsoever for any issues
 > caused by the use of this software, or software installed via this software.
 > __*Use at your own risk*__.
-
-<br />
-<p align="center"><a href="https://www.buymeacoffee.com/izirku" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a></p>
