@@ -3,6 +3,7 @@ mod release;
 mod response;
 
 use std::cmp;
+use std::fmt::Write;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Result};
@@ -168,12 +169,24 @@ impl GitHub {
                     1 => Ok(Some(release)),
                     0 => Ok(None),
                     _ => {
-                        let msg = if asset_re.is_some() {
-                            "multiple assets matched, consider modifying `--asset-regex` expression"
+                        let mut msg: String = "\nmultiple assets matched:\n\n".to_string();
+                        for asset in &release.assets {
+                            writeln!(
+                                msg,
+                                "  {} ({})",
+                                &asset.name,
+                                bytesize::to_string(asset.size, false)
+                            )?;
+                        }
+                        if asset_re.is_some() {
+                            writeln!(msg, "\nconsider modifying `--asset-regex` expression")?;
                         } else if asset_glob.is_some() {
-                            "multiple assets matched, consider modifying `--asset-glob` filter or using a more powerful `--asset-regex-match`"
+                            writeln!(msg, "\nconsider modifying `--asset-glob` filter or using a more powerful `--asset-regex-match`")?;
                         } else {
-                            "multiple assets matched, consider using `--asset-glob` or `--asset-regex` filter"
+                            writeln!(
+                                msg,
+                                "\nconsider using `--asset-glob` or `--asset-regex` filter"
+                            )?;
                         };
 
                         Err(anyhow!(msg))
@@ -229,14 +242,25 @@ impl GitHub {
                         1 => break 'outer Ok(Some(release)),
                         0 => break 'outer Ok(None),
                         _ => {
-                            let msg = if asset_re.is_some() {
-                                "multiple assets matched, consider modifying `--asset-regex` expression"
+                            let mut msg: String = "\nmultiple assets matched:\n\n".to_string();
+                            for asset in &release.assets {
+                                writeln!(
+                                    msg,
+                                    "  {} ({})",
+                                    &asset.name,
+                                    bytesize::to_string(asset.size, false)
+                                )?;
+                            }
+                            if asset_re.is_some() {
+                                writeln!(msg, "\nconsider modifying `--asset-regex` expression")?;
                             } else if asset_glob.is_some() {
-                                "multiple assets matched, consider modifying `--asset-glob` filter or using a more powerful `--asset-regex`"
+                                writeln!(msg, "\nconsider modifying `--asset-glob` filter or using a more powerful `--asset-regex-match`")?;
                             } else {
-                                "multiple assets matched, consider using `--asset-glob` or `--asset-regex` filter"
+                                writeln!(
+                                    msg,
+                                    "\nconsider using `--asset-glob` or `--asset-regex` filter"
+                                )?;
                             };
-
                             break 'outer Err(anyhow!(msg));
                         }
                     }

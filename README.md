@@ -8,12 +8,12 @@
 
 > Install and update binaries via GitHub Releases API
 
-<p align="center"><img src="/zavod/gitrel_demo.gif?raw=true"/></p>
+<p align="center"><img src="/xtra/gitrel_demo.gif?raw=true"/></p>
 
 ## Install
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/izirku/gitrel/main/zavod/install.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/izirku/gitrel/main/xtra/install.sh)"
 ```
 
 ## Usage
