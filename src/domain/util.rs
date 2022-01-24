@@ -26,12 +26,25 @@ pub fn message_fail(pb: &ProgressBar, repo_name: &str, msg: &str) {
 }
 
 pub fn matches_target(str: &str) -> bool {
+    // `str` must not have any terms present in `EXCLUDE_SET`
     for term in TERMS.find_iter(&str.to_lowercase()) {
         if EXCLUDE_SET.contains(term.as_str()) {
             return false;
         }
     }
-    true
+    // if include set is not empty, `str` must include at least 1 term
+    // from the `INCLUDE_SET`
+    if !INCLUDE_SET.is_empty() {
+        // must include at least 1
+        for term in TERMS.find_iter(&str.to_lowercase()) {
+            if INCLUDE_SET.contains(term.as_str()) {
+                return true;
+            }
+        }
+        false
+    } else {
+        true
+    }
 }
 
 pub fn matches_semver(tag_name: &str, semver: &str) -> bool {
@@ -99,8 +112,6 @@ pub fn packages_file() -> Result<PathBuf> {
     let base_dirs = BaseDirs::new().ok_or_else(|| anyhow!("unable to get usable `base dir`"))?;
     let home_dir = base_dirs.home_dir();
 
-    // let proj_dirs = ProjectDirs::from("com.github", "izirku", crate_name!()).unwrap();
-    // let cfg_dir = proj_dirs.config_dir();
     let cfg_dir = home_dir.join(".config/gitrel/");
     fs::create_dir_all(cfg_dir.as_path())
         .with_context(|| format!("unable to create config dir: {:?}", cfg_dir.as_path()))?;

@@ -11,27 +11,53 @@ fn main() {
     let tgt_arch = platforms::target::TARGET_ARCH.as_str();
     // let curr_abi = platforms::target::TARGET_ENV.unwrap().as_str();
 
-    let mut exclude_set: HashSet<&'static str> = ALL_EXCLUDES.iter().copied().collect();
+    let mut exclude_set: HashSet<&str> = ALL_EXCLUDES.iter().copied().collect();
+    let mut include_set: HashSet<&str> = HashSet::new();
 
     exclude_set.remove(tgt_os);
+    exclude_set.remove(tgt_arch);
+
     if tgt_os == "macos" {
         exclude_set.remove("apple");
         exclude_set.remove("darwin");
         exclude_set.remove("osx");
+
+        include_set.insert(tgt_os);
+        include_set.insert("apple");
+        include_set.insert("darwin");
+        include_set.insert("osx");
     }
+
     if tgt_os == "windows" {
+        exclude_set.remove("win");
+
+        include_set.insert(tgt_os);
+        include_set.insert("win");
+        include_set.insert("exe");
+    }
+
+    if tgt_os == "windows" && tgt_arch == "x86_64" {
         exclude_set.remove("win64");
     }
 
-    exclude_set.remove(tgt_arch);
+    if tgt_os == "windows" && tgt_arch == "x86" {
+        exclude_set.remove("win32");
+    }
+
     if tgt_arch == "x86_64" {
         exclude_set.remove("amd64");
     }
+
     if tgt_arch == "x86" {
         exclude_set.remove("386");
         exclude_set.remove("i586");
         exclude_set.remove("i686");
         exclude_set.remove("32-bit");
+
+        include_set.insert("386");
+        include_set.insert("i586");
+        include_set.insert("i686");
+        include_set.insert("32-bit");
     }
 
     if let Some(abi) = platforms::target::TARGET_ENV {
@@ -41,10 +67,19 @@ fn main() {
     let out_dir = env::var_os("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("generated.rs");
 
-    let mut msg = String::with_capacity(exclude_set.len() * 12);
+    let mut msg = String::with_capacity((exclude_set.len() + include_set.len()) * 12);
+    // generate EXCLUDE_SET
     msg.write_str("lazy_static! { static ref EXCLUDE_SET: HashSet<&'static str> = vec![")
         .unwrap();
     for term in exclude_set.iter().copied() {
+        msg.write_str(format!("\"{}\",", term).as_str()).unwrap();
+    }
+    msg.write_str("].iter().copied().collect();}\n").unwrap();
+    // generate INCLUDE_SET
+    // include_set.clear();
+    msg.write_str("lazy_static! { static ref INCLUDE_SET: HashSet<&'static str> = vec![")
+        .unwrap();
+    for term in include_set.iter().copied() {
         msg.write_str(format!("\"{}\",", term).as_str()).unwrap();
     }
     msg.write_str("].iter().copied().collect();}\n").unwrap();
@@ -65,7 +100,10 @@ lazy_static! {
         "src",
         "vsix",
         "win64",
+        "win32",
         "txt",
+        "deb",
+        "rpm",
         // ===============================================
         // OS
         "aix",
@@ -90,6 +128,7 @@ lazy_static! {
         "solaris",
         "sun",
         "windows",
+        "win",
         "zos",
         // ===============================================
         // ARCH

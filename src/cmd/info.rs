@@ -1,8 +1,7 @@
-use anyhow::Result;
-
 use crate::cli::InfoArgs;
 use crate::domain::github::GitHub;
 use crate::domain::util;
+use anyhow::Result;
 
 pub async fn info(args: InfoArgs) -> Result<()> {
     let (user, repo, requested_ver) = util::parse_gh_repo_spec(&args.repo_spec)?;
@@ -19,7 +18,7 @@ pub async fn info(args: InfoArgs) -> Result<()> {
         .await;
 
     match release {
-        Ok(Some(release)) => {
+        Ok(release) => {
             println!("\n         tag: {}", &release.tag_name);
             println!("published at: {}", &release.published_at);
             println!("   file name: {}", &release.assets[0].name);
@@ -31,10 +30,15 @@ pub async fn info(args: InfoArgs) -> Result<()> {
 
             Ok(())
         }
-        Ok(None) => {
-            println!("not able to find a matching release");
-            Ok(())
+        Err(e) => {
+            use crate::domain::error::GithubError;
+            match e {
+                GithubError::AnyHow(e) => Err(e),
+                e => {
+                    eprint!("\nreason: {}\n\n", e);
+                    Ok(())
+                }
+            }
         }
-        Err(e) => Err(anyhow::Error::msg(e).context("operation failed")),
     }
 }

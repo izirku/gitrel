@@ -3,9 +3,10 @@ mod release;
 mod response;
 
 use std::cmp;
+use std::fmt::Write;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context};
 use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::{header, Client, Method};
@@ -13,10 +14,15 @@ use tempfile::TempDir;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
+use crate::domain::github::response::ErrorResponse;
+
 use self::release::Release;
 use self::response::GithubResponse;
+use super::error::GithubError;
 use super::package::{match_kind, Package, PackageMatchKind};
 use super::util;
+
+type Result<T, E = GithubError> = std::result::Result<T, E>;
 
 const GH_MAX_PAGES: usize = 5;
 const GH_PER_PAGE: usize = 25;
@@ -77,7 +83,7 @@ impl GitHub {
         requested: &str,
         asset_glob: Option<&str>,
         asset_re: Option<&str>,
-    ) -> Result<Option<Release>> {
+    ) -> Result<Release> {
         match match_kind(requested) {
             PackageMatchKind::Latest => {
                 let req_url = format!(
@@ -109,7 +115,7 @@ impl GitHub {
     /// Find a `Release` matching provided `Package`.
     /// When `force` is `true`, return `Release`, even if it's not newer than
     /// the one specified in `Package`
-    pub async fn find_existing(&self, package: &Package) -> Result<Option<Release>> {
+    pub async fn find_existing(&self, package: &Package) -> Result<Release> {
         let res = self
             .find_new(
                 &package.user,
@@ -118,20 +124,19 @@ impl GitHub {
                 package.asset_glob.as_deref(),
                 package.asset_re.as_deref(),
             )
-            .await?;
+            .await;
 
-        match res {
-            Some(release) => {
-                // we want to compare release's `published_at` date to
-                // what we have on record. If it's the same as ours, skip it.
-                // NB: Strict comparison for equality should be faster and enough.
-                if release.tag_name == package.tag && release.published_at == package.timestamp {
-                    Ok(None)
-                } else {
-                    Ok(Some(release))
-                }
+        if let Ok(release) = res {
+            // we want to compare release's `published_at` date to
+            // what we have on record. If it's the same as ours, skip it.
+            // NB: Strict comparison for equality should be faster and enough.
+            if release.tag_name == package.tag && release.published_at == package.timestamp {
+                Err(GithubError::AlreadyUpToDate)
+            } else {
+                Ok(release)
             }
-            None => Ok(None),
+        } else {
+            res
         }
     }
 
@@ -141,7 +146,9 @@ impl GitHub {
         repo: &str,
         asset_glob: Option<&str>,
         asset_re: Option<&str>,
-    ) -> Result<Option<Release>> {
+    ) -> Result<Release> {
+        use reqwest::StatusCode;
+
         let resp = self
             .client
             .get(req_url)
@@ -150,12 +157,16 @@ impl GitHub {
             .await
             .context("fetching latest release")?;
 
-        if resp.status().as_u16() == 404 {
-            return Ok(None);
+        if resp.status() == StatusCode::NOT_FOUND {
+            return Err(GithubError::ReleaseNotFound);
         }
 
-        let resp = resp
-            .json::<GithubResponse<Release>>()
+        if resp.status() != StatusCode::OK {
+            return Err(GithubError::AnyHow(anyhow!("getting")));
+        }
+
+        let resp: GithubResponse<Release> = resp
+            .json()
             .await
             .context("parsing latest release response body")?;
 
@@ -165,24 +176,25 @@ impl GitHub {
                 release.assets.retain(|asset| asset_matcher(&asset.name));
 
                 match release.assets.len() {
-                    1 => Ok(Some(release)),
-                    0 => Ok(None),
+                    1 => Ok(release),
+                    0 => Err(GithubError::AssetNoMatch),
                     _ => {
-                        let msg = if asset_re.is_some() {
-                            "multiple assets matched, consider modifying `--asset-regex` expression"
-                        } else if asset_glob.is_some() {
-                            "multiple assets matched, consider modifying `--asset-glob` filter or using a more powerful `--asset-regex-match`"
-                        } else {
-                            "multiple assets matched, consider using `--asset-glob` or `--asset-regex` filter"
-                        };
-
-                        Err(anyhow!(msg))
+                        let mut msg: String = String::new();
+                        for asset in &release.assets {
+                            writeln!(
+                                msg,
+                                "  {} ({})",
+                                &asset.name,
+                                bytesize::to_string(asset.size, false)
+                            )
+                            .map_err(anyhow::Error::msg)?;
+                        }
+                        Err(GithubError::AssetMultipleMatch(msg))
                     }
                 }
             }
-            GithubResponse::Err(err) => {
-                eprintln!("{}", err.message);
-                Ok(None)
+            GithubResponse::Err(ErrorResponse { message }) => {
+                Err(GithubError::AnyHow(anyhow!(message)))
             }
         }
     }
@@ -194,7 +206,8 @@ impl GitHub {
         repo: &str,
         asset_glob: Option<&str>,
         asset_re: Option<&str>,
-    ) -> Result<Option<Release>> {
+    ) -> Result<Release> {
+        use reqwest::StatusCode;
         let asset_matcher = get_asset_name_matcher(repo, asset_glob, asset_re)?;
         let mut curr_page: usize = 1;
 
@@ -206,38 +219,45 @@ impl GitHub {
                 .query(&[("page", curr_page)])
                 .send()
                 .await
-                .context("fething next page")?;
+                .context("sending request")?;
 
-            if resp.status().as_u16() != 200 {
-                return Ok(None);
+            if resp.status() == StatusCode::NOT_FOUND {
+                return Err(GithubError::ReleaseNotFound);
             }
 
-            let releases: Vec<GithubResponse<Release>> =
+            if resp.status() != StatusCode::OK {
+                return Err(GithubError::AnyHow(anyhow!("getting")));
+            }
+
+            let releases: GithubResponse<Vec<Release>> =
                 resp.json().await.context("parsing response body")?;
 
-            for mut release in releases.into_iter().filter_map(|resp| {
-                if let GithubResponse::Ok(release) = resp {
-                    Some(release)
-                } else {
-                    None
+            let releases = match releases {
+                GithubResponse::Ok(res) => res,
+                GithubResponse::Err(ErrorResponse { message }) => {
+                    return Err(GithubError::AnyHow(anyhow!(message)));
                 }
-            }) {
+            };
+
+            for mut release in releases {
                 if util::matches_semver(&release.tag_name, requested) {
                     release.assets.retain(|asset| asset_matcher(&asset.name));
 
                     match release.assets.len() {
-                        1 => break 'outer Ok(Some(release)),
-                        0 => break 'outer Ok(None),
+                        1 => break 'outer Ok(release),
+                        0 => break 'outer Err(GithubError::ReleaseNotFound),
                         _ => {
-                            let msg = if asset_re.is_some() {
-                                "multiple assets matched, consider modifying `--asset-regex` expression"
-                            } else if asset_glob.is_some() {
-                                "multiple assets matched, consider modifying `--asset-glob` filter or using a more powerful `--asset-regex`"
-                            } else {
-                                "multiple assets matched, consider using `--asset-glob` or `--asset-regex` filter"
-                            };
-
-                            break 'outer Err(anyhow!(msg));
+                            let mut msg: String = String::new();
+                            for asset in &release.assets {
+                                writeln!(
+                                    msg,
+                                    "  {} ({})",
+                                    &asset.name,
+                                    bytesize::to_string(asset.size, false)
+                                )
+                                .map_err(anyhow::Error::msg)?;
+                            }
+                            break 'outer Err(GithubError::AssetMultipleMatch(msg));
                         }
                     }
                 }
@@ -245,7 +265,7 @@ impl GitHub {
 
             curr_page += 1;
             if curr_page > GH_MAX_PAGES {
-                break Ok(None);
+                break Err(GithubError::ReleaseNotFound);
             }
         }
     }
@@ -272,13 +292,17 @@ impl GitHub {
             .await
             .context("fething an asset")?;
 
+        if resp.status() == StatusCode::NOT_FOUND {
+            return Err(GithubError::AssetNotFound);
+        }
+
         if resp.status() != StatusCode::OK {
             let mut msg = format!("getting: {}", &req_url);
             if let Ok(txt) = resp.text().await {
                 msg.push('\n');
                 msg.push_str(&txt);
             }
-            return Err(anyhow!(msg));
+            return Err(GithubError::AnyHow(anyhow!(msg)));
         }
         let tot_size = resp.content_length().context("getting content length")?;
 
@@ -324,7 +348,7 @@ fn get_asset_name_matcher(
 ) -> Result<Box<dyn Fn(&str) -> bool>> {
     if let Some(s) = asset_glob {
         if s.contains('/') || s.contains("**") {
-            return Err(anyhow!("'/' or '**' are not allowed not allowed in a glob pattern matching a single file name"));
+            return Err(GithubError::AnyHow(anyhow!("'/' or '**' are not allowed not allowed in a glob pattern matching a single file name")));
         }
         let glob = glob::Pattern::new(s).context("invalid asset name glob pattern")?;
         Ok(Box::new(move |asset_name: &str| glob.matches(asset_name)))
