@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use clap::crate_name;
 use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -36,7 +36,8 @@ pub async fn uninstall(args: UninstallArgs) -> Result<()> {
         for bin_name in requested_packages {
             eprintln!("package `{}` is not installed", bin_name);
         }
-        return Err(anyhow!("operation failed"));
+        // return Err(AppError::OperationFailed);
+        return Ok(());
     }
 
     let bin_dir = bin_dir()?;
@@ -68,9 +69,11 @@ pub async fn uninstall(args: UninstallArgs) -> Result<()> {
                 uninstalled_ct += 1;
                 needs_save = true;
             }
-            Err(e) => {
+            e => {
                 message_fail(&pb, &pkg.bin_name, "couldn't uninstall");
-                return Err(e.context("operation failed"));
+                // eprintln!("`{}`:\n\n{}", &pkg.bin_name, e);
+                // return Err(AppError::OperationFailed);
+                return e;
             }
         }
     }

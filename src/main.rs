@@ -9,11 +9,20 @@ use clap::Parser;
 
 use crate::cli::Cli;
 
-fn main() -> Result<()> {
-    let args = Cli::parse();
+fn main() {
+    std::process::exit(match run_app() {
+        Ok(()) => 0,
+        Err(e) => {
+            if cfg!(debug_assertions) {
+                eprint!("{}\n\n", e);
+            }
+            1
+        }
+    });
+}
 
-    // println!("{:#?}", &args);
-    // Ok(())
+fn run_app() -> Result<()> {
+    let args = Cli::parse();
 
     match args.command {
         cli::Commands::Install(args) => rt_current_thread(cmd::install(args)),

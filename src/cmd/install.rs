@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use clap::crate_name;
 use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -54,7 +54,7 @@ pub async fn install(args: InstallArgs) -> Result<()> {
         )
         .await
     {
-        Ok(Some(release)) => {
+        Ok(release) => {
             let (asset_id, asset_name) = (release.assets[0].id, release.assets[0].name.as_str());
 
             pb.set_message(format!("downloading {}", style(&repo).green()));
@@ -120,19 +120,29 @@ pub async fn install(args: InstallArgs) -> Result<()> {
                 }
                 Err(e) => {
                     message_fail(&pb, &repo, "not installed");
-                    eprintln!("{:?}\n", e);
-                    Err(anyhow!("operation failed"))
+
+                    use crate::domain::error::InstallerError;
+                    match e {
+                        InstallerError::AnyHow(e) => Err(e),
+                        e => {
+                            eprint!("\nreason: {}\n\n", e);
+                            Ok(())
+                        }
+                    }
                 }
             }
         }
-        Ok(None) => {
-            message_fail(&pb, &repo, "not found");
-            Ok(())
-        }
         Err(e) => {
             message_fail(&pb, &repo, "not installed");
-            eprintln!("{:?}\n", e);
-            Err(anyhow!("operation failed"))
+
+            use crate::domain::error::GithubError;
+            match e {
+                GithubError::AnyHow(e) => Err(e),
+                e => {
+                    eprint!("\nreason: {}\n\n", e);
+                    Ok(())
+                }
+            }
         }
     }
 }

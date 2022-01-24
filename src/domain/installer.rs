@@ -8,14 +8,17 @@ use std::{
     os::unix::fs::PermissionsExt,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context};
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use lazy_static::__Deref;
 use xz::read::XzDecoder;
 use zip::ZipArchive;
 
+use super::error::InstallerError;
 use super::util::{self, ArchiveKind, TarKind};
+
+type Result<T, E = InstallerError> = std::result::Result<T, E>;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn install(
@@ -56,7 +59,9 @@ pub async fn install(
 
             match std::io::copy(&mut reader, &mut dest_file) {
                 Ok(n) => Ok(n),
-                Err(_e) => Err(anyhow!("installing an uncompressed binary")),
+                Err(_e) => Err(InstallerError::AnyHow(anyhow!(
+                    "installing an uncompressed binary"
+                ))),
             }
         }
     }?;
@@ -94,7 +99,7 @@ fn extract_gzip(archive: &Path, dest: &Path) -> Result<u64> {
         ))?;
     match std::io::copy(&mut reader, &mut dest_file) {
         Ok(n) => Ok(n),
-        Err(_e) => Err(anyhow!("decompressing a gzip file")),
+        Err(_e) => Err(InstallerError::AnyHow(anyhow!("decompressing a gzip file"))),
     }
 }
 
@@ -114,7 +119,7 @@ fn extract_bzip(archive: &Path, dest: &Path) -> Result<u64> {
         ))?;
     match std::io::copy(&mut reader, &mut dest_file) {
         Ok(n) => Ok(n),
-        Err(_e) => Err(anyhow!("decompressing a bzip2 file")),
+        Err(_e) => Err(InstallerError::AnyHow(anyhow!("decompressing a bzip2 file"))),
     }
 }
 
@@ -134,7 +139,7 @@ fn extract_xz(archive: &Path, dest: &Path) -> Result<u64> {
         ))?;
     match std::io::copy(&mut reader, &mut dest_file) {
         Ok(n) => Ok(n),
-        Err(_e) => Err(anyhow!("decompressing an xz file")),
+        Err(_e) => Err(InstallerError::AnyHow(anyhow!("decompressing an xz file"))),
     }
 }
 
@@ -179,14 +184,16 @@ fn extract_zip(
 
         return match std::io::copy(&mut reader, &mut dest_file) {
             Ok(n) => Ok(n),
-            Err(_e) => Err(anyhow!("decompressing a zip file")),
+            Err(_e) => Err(InstallerError::AnyHow(anyhow!("decompressing a zip file"))),
         };
     }
 
-    Err(anyhow!(format!(
-        "binary `{}` not found inside the zip archive",
-        file_name
-    )))
+    Err(entry_match_error(
+        archive.file_name().and_then(OsStr::to_str).unwrap(),
+        file_name,
+        entry_glob,
+        entry_re,
+    ))
 }
 
 fn extract_tar(
@@ -233,10 +240,31 @@ fn extract_tar(
         }
     }
 
-    Err(anyhow!(format!(
-        "binary `{}` not found inside the tarball",
-        file_name
-    )))
+    Err(entry_match_error(
+        archive.file_name().and_then(OsStr::to_str).unwrap(),
+        file_name,
+        entry_glob,
+        entry_re,
+    ))
+}
+
+fn entry_match_error(
+    archive_name: &str,
+    entry_exact: &str,
+    entry_glob: Option<&str>,
+    entry_re: Option<&str>,
+) -> InstallerError {
+    if let Some(s) = entry_glob {
+        InstallerError::EntryNotFound(s.to_owned(), "glob pattern", archive_name.to_owned())
+    } else if let Some(s) = entry_re {
+        InstallerError::EntryNotFound(s.to_owned(), "RegEx pattern", archive_name.to_owned())
+    } else {
+        InstallerError::EntryNotFound(
+            entry_exact.to_owned(),
+            "exact file name",
+            archive_name.to_owned(),
+        )
+    }
 }
 
 fn get_archive_entry_matcher(
@@ -258,7 +286,9 @@ fn get_archive_entry_matcher(
             if let Some(archive_entry) = archive_entry.to_str() {
                 Ok(re.is_match(archive_entry))
             } else {
-                Err(anyhow!("unable to convert archive entry path to string"))
+                Err(InstallerError::AnyHow(anyhow!(
+                    "unable to convert archive entry path to string"
+                )))
             }
         }))
     } else {
@@ -267,9 +297,9 @@ fn get_archive_entry_matcher(
             if let Some(archive_entry_file) = archive_entry.file_name().and_then(OsStr::to_str) {
                 Ok(archive_entry_file == entry_exact)
             } else {
-                Err(anyhow!(
+                Err(InstallerError::AnyHow(anyhow!(
                     "unable to convert archive file entry path to string"
-                ))
+                )))
             }
         }))
     }
