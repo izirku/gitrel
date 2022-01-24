@@ -112,8 +112,6 @@ pub fn packages_file() -> Result<PathBuf> {
     let base_dirs = BaseDirs::new().ok_or_else(|| anyhow!("unable to get usable `base dir`"))?;
     let home_dir = base_dirs.home_dir();
 
-    // let proj_dirs = ProjectDirs::from("com.github", "izirku", crate_name!()).unwrap();
-    // let cfg_dir = proj_dirs.config_dir();
     let cfg_dir = home_dir.join(".config/gitrel/");
     fs::create_dir_all(cfg_dir.as_path())
         .with_context(|| format!("unable to create config dir: {:?}", cfg_dir.as_path()))?;

@@ -1,6 +1,6 @@
 [package]
 name = "gitrel"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Evgenii Grigorev <zjekadev@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
@@ -14,36 +14,37 @@ include = ["src/**/*.rs", "crates-io.md", "README.md", "LICENSE-APACHE", "LICENS
 
 [dependencies]
 anyhow = "1.0"
+bytesize = "1.1"
+bzip2 = "0.4"
+cfg-if = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "3.0", features = ["derive", "env", "cargo"] }
+console = "0.15"
 directories = "4.0"
+flate2 = "1.0"
+futures-util = "0.3"
 glob = "0.3"
+indicatif = "0.16"
 lazy_static = "1.4"
 regex = "1.5"
 reqwest = { version = "0.11", features = ["json", "stream"] }
-semver = "1.0.4"
+semver = "1.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0"
+tabled = { version = "0.4", features = ["color"] }
+tar = "0.4"
+tempfile = "3.3"
+thiserror = "1"
 tokio = { version = "1.15", features = ["full"] }
 url = { version = "2.2", features = ["serde"] }
-tempfile = "3.3"
-bzip2 = "0.4"
 xz = "0.1"
 zip = "0.5"
-tar = "0.4"
-flate2 = "1.0.22"
-cfg-if = "1.0.0"
-tabled = { version = "0.4", features = ["color"] }
-console = "0.15"
-bytesize = "1.1"
-futures-util = "0.3"
-indicatif = "0.16"
 
 [build-dependencies]
-platforms = "2.0"
 lazy_static = "1.4"
+platforms = "2.0"
 
 [profile.release]
-opt-level = 3
 codegen-units = 1
 lto = true
+opt-level = 3
