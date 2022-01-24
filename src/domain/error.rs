@@ -15,12 +15,6 @@ pub enum GithubError {
     #[error("already up to date")]
     AlreadyUpToDate,
 
-    // #[error("operation failed")]
-    // OperationFailed,
-
-    // #[error("operation partial success")]
-    // OperationPartialSuccess,
-
     #[error(transparent)]
     AnyHow(#[from] anyhow::Error), // source and Display delegate to anyhow::Error
 }
@@ -33,4 +27,3 @@ pub enum InstallerError {
     #[error(transparent)]
     AnyHow(#[from] anyhow::Error), // source and Display delegate to anyhow::Error
 }
-

@@ -52,7 +52,6 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
             for bin_name in requested_packages {
                 eprintln!("\npackage `{}` is not installed", bin_name);
             }
-            // return Err(GithubError::AnyHow(anyhow!("operation failed")));
             return Ok(());
         }
 
@@ -64,11 +63,8 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
     let bin_dir = util::bin_dir()?;
     let mut needs_save = false;
     let mut updated = 0;
-    // let mut errors: Vec<(String, GithubError)> = Vec::with_capacity(packages_to_update.len());
 
     for i in packages_to_update {
-        // let pkg = &mut packages_installed[i];
-
         let pb = ProgressBar::new(u64::MAX);
         pb.set_style(
             ProgressStyle::default_bar()
@@ -125,7 +121,6 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
                             style(&packages_installed[i].bin_name).green(),
                             bytesize::to_string(bin_size, false),
                         );
-                        // pb.disable_steady_tick();
                         pb.set_style(ProgressStyle::default_bar().template("{msg}"));
                         pb.finish_with_message(msg);
 
@@ -145,7 +140,6 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
                                 return Ok(());
                             }
                         }
-                        // errors.push((packages_installed[i].bin_name.to_owned(), e));
                     }
                 }
             }
@@ -155,7 +149,6 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
                     style('✓').green(),
                     style(&packages_installed[i].bin_name).green(),
                 );
-                // pb.disable_steady_tick();
                 pb.set_style(ProgressStyle::default_bar().template("{msg}"));
                 pb.finish_with_message(msg);
             }
@@ -187,19 +180,4 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
     println!("\nUpdated {} of {} binaries.", updated, requested_tot);
 
     Ok(())
-
-    // if errors.is_empty() {
-    //     Ok(())
-    // } else {
-    //     eprintln!("\nsome errors has occurred during the update:\n");
-    //     for (pkg, e) in errors.iter() {
-    //         eprintln!("{}:\n\n{:?}\n\n", pkg, e);
-    //     }
-
-    //     if updated > 0 {
-    //         Err(GithubError::OperationPartialSuccess)
-    //     } else {
-    //         Err(GithubError::OperationFailed)
-    //     }
-    // }
 }

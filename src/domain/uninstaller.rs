@@ -1,7 +1,5 @@
-use anyhow::Context;
+use anyhow::{Context, Result};
 use std::{fs, path::Path};
-
-use crate::Result;
 
 pub fn uninstall(bin_name: &str, bin_dir: &Path) -> Result<()> {
     let file_to_delete = bin_dir.join(bin_name);

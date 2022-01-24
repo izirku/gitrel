@@ -1,9 +1,9 @@
+use anyhow::Result;
 use clap::crate_name;
 use console::style;
 use tabled::{style::Line, Alignment, Column, Format, Modify, Object, Row, Style, Table, Tabled};
 
 use crate::domain::{package, util::packages_file};
-use crate::Result;
 
 #[derive(Tabled)]
 struct ListLine<'a> {

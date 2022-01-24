@@ -119,7 +119,9 @@ fn extract_bzip(archive: &Path, dest: &Path) -> Result<u64> {
         ))?;
     match std::io::copy(&mut reader, &mut dest_file) {
         Ok(n) => Ok(n),
-        Err(_e) => Err(InstallerError::AnyHow(anyhow!("decompressing a bzip2 file"))),
+        Err(_e) => Err(InstallerError::AnyHow(anyhow!(
+            "decompressing a bzip2 file"
+        ))),
     }
 }
 

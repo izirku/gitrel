@@ -36,7 +36,6 @@ pub async fn uninstall(args: UninstallArgs) -> Result<()> {
         for bin_name in requested_packages {
             eprintln!("package `{}` is not installed", bin_name);
         }
-        // return Err(AppError::OperationFailed);
         return Ok(());
     }
 
@@ -71,8 +70,6 @@ pub async fn uninstall(args: UninstallArgs) -> Result<()> {
             }
             e => {
                 message_fail(&pb, &pkg.bin_name, "couldn't uninstall");
-                // eprintln!("`{}`:\n\n{}", &pkg.bin_name, e);
-                // return Err(AppError::OperationFailed);
                 return e;
             }
         }

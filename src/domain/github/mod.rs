@@ -138,16 +138,6 @@ impl GitHub {
         } else {
             res
         }
-        // match res {
-        //     Some(release) => {
-        //         if release.tag_name == package.tag && release.published_at == package.timestamp {
-        //             Ok(None)
-        //         } else {
-        //             Ok(Some(release))
-        //         }
-        //     }
-        //     None => Ok(None),
-        // }
     }
 
     async fn find_exact_release(
@@ -239,8 +229,6 @@ impl GitHub {
                 return Err(GithubError::AnyHow(anyhow!("getting")));
             }
 
-            // let releases: Vec<GithubResponse<Release>> =
-            //     resp.json().await.context("parsing response body")?;
             let releases: GithubResponse<Vec<Release>> =
                 resp.json().await.context("parsing response body")?;
 
