@@ -70,7 +70,7 @@ pub struct InstallArgs {
     /// match archived asset entry name using RegEx pattern
     #[clap(
         short = 'E',
-        long = "entry-regex-match",
+        long = "entry-regex",
         value_name = "REGEX",
         conflicts_with = "entry-glob"
     )]

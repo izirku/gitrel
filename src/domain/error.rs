@@ -6,7 +6,7 @@ pub enum GithubError {
     #[error("specified asset not found on GitHub")]
     AssetNotFound,
 
-    #[error("multiple assets matched:\n\n{0}\nconsider using/modifying `--asset-glob` or `--asset-regex-match` filter")]
+    #[error("multiple assets matched:\n\n{0}\nconsider using/modifying `--asset-glob` or `--asset-regex` filter")]
     AssetMultipleMatch(String),
 
     #[error("asset file not found")]
