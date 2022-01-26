@@ -1,0 +1,12 @@
+script for a demo term cast:
+
+gitrel list
+gitrel info rust-analyzer@nightly
+gitrel install rust-analyzer@nightly
+gitrel install -s jesseduffield/lazygit
+gitrel install -r bbl cloudfoundry/bosh-bootloader
+gitrel install -r bbl -a "bbl*" cloudfoundry/bosh-bootloader
+gitrel install -r bbl -a "bbl*_osx" cloudfoundry/bosh-bootloader
+gitrel install -sA "^yq_darwin_amd64$" https://github.com/mikefarah/yq
+github list
+github uninstall rust-analyzer lazygit bbl yq
