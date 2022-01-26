@@ -54,10 +54,16 @@ pub async fn uninstall(args: UninstallArgs) -> Result<()> {
         pb.set_message(format!("uninstalling {}", style(&pkg.bin_name).green()));
         pb.enable_steady_tick(220);
 
-        #[cfg(target_os = "windows")]
-        let bin_name = format!("{}.exe", &pkg.bin_name);
+        cfg_if::cfg_if! {
+            if #[cfg(target_os = "windows")] {
+                let bin_name = format!("{}.exe", &pkg.bin_name);
+                let bin_name = bin_name.as_ref();
+            } else {
+                let bin_name = &pkg.bin_name;
+            }
+        }
 
-        match uninstall_binary(&bin_name, bin_dir.as_path()) {
+        match uninstall_binary(bin_name, bin_dir.as_path()) {
             Ok(()) => {
                 let msg = format!(
                     "{} uninstalled {}",
