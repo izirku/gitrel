@@ -98,13 +98,25 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
                     "updating {}",
                     style(&packages_installed[i].bin_name).green()
                 ));
+
+                #[cfg(not(target_os = "windows"))]
                 let res = installer::install(
-                    &packages_installed[i].repo.to_lowercase(),
                     &release.assets[0].name,
                     &asset_path,
                     bin_dir.as_path(),
                     &packages_installed[i].bin_name,
                     packages_installed[i].strip.unwrap_or_default(),
+                    packages_installed[i].asset_glob.as_deref(),
+                    packages_installed[i].asset_re.as_deref(),
+                )
+                .await;
+
+                #[cfg(target_os = "windows")]
+                let res = installer::install(
+                    &release.assets[0].name,
+                    &asset_path,
+                    bin_dir.as_path(),
+                    &packages_installed[i].bin_name,
                     packages_installed[i].asset_glob.as_deref(),
                     packages_installed[i].asset_re.as_deref(),
                 )

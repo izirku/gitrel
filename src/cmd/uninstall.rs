@@ -8,7 +8,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use crate::cli::UninstallArgs;
 use crate::domain::package::{self, write_packages_file};
 use crate::domain::uninstaller::uninstall as uninstall_binary;
-use crate::domain::util::{self, bin_dir, message_fail, packages_file};
+use crate::domain::util::{bin_dir, message_fail, packages_file};
 
 /// Uninstall installed packages
 pub async fn uninstall(args: UninstallArgs) -> Result<()> {
@@ -54,7 +54,9 @@ pub async fn uninstall(args: UninstallArgs) -> Result<()> {
         pb.set_message(format!("uninstalling {}", style(&pkg.bin_name).green()));
         pb.enable_steady_tick(220);
 
-        let bin_name = util::bin_name(&pkg.bin_name);
+        #[cfg(target_os = "windows")]
+        let bin_name = format!("{}.exe", &pkg.bin_name);
+
         match uninstall_binary(&bin_name, bin_dir.as_path()) {
             Ok(()) => {
                 let msg = format!(

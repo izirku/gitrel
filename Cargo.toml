@@ -1,6 +1,6 @@
 [package]
 name = "gitrel"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Evgenii Grigorev <zjekadev@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"

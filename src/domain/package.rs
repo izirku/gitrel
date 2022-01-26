@@ -22,6 +22,7 @@ pub struct Package {
     /// - `"<SEMVER string>"` - a *semver* to match against *release tag*
     pub requested: String,
     /// use `strip` on the binary
+    #[cfg(not(target_os = "windows"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub strip: Option<bool>,
     /// When remote repo was last updated
