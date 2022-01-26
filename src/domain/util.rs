@@ -141,17 +141,6 @@ pub fn bin_dir() -> Result<PathBuf> {
     Ok(bin_dir)
 }
 
-#[inline]
-pub fn bin_name(name: &str) -> String {
-    cfg_if::cfg_if! {
-        if #[cfg(target_os="windows")] {
-            format!("{}.exe", name)
-        } else {
-            name.to_owned()
-        }
-    }
-}
-
 /// Returns a tuple (user, repo, requested_version)
 pub fn parse_gh_repo_spec(repo_spec: &str) -> Result<(String, String, String)> {
     // split [https://github.com/]user/repo@version at '@'

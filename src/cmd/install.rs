@@ -72,13 +72,24 @@ pub async fn install(args: InstallArgs) -> Result<()> {
                 repo.to_lowercase()
             };
 
+            #[cfg(not(target_os = "windows"))]
             let res = installer::install(
-                &repo.to_lowercase(),
                 asset_name,
                 &asset_path,
                 &bin_dir,
                 &bin_name,
                 args.strip,
+                args.entry_glob.as_deref(),
+                args.entry_re.as_deref(),
+            )
+            .await;
+
+            #[cfg(target_os = "windows")]
+            let res = installer::install(
+                asset_name,
+                &asset_path,
+                &bin_dir,
+                &bin_name,
                 args.entry_glob.as_deref(),
                 args.entry_re.as_deref(),
             )
@@ -95,6 +106,7 @@ pub async fn install(args: InstallArgs) -> Result<()> {
                     pb.set_style(ProgressStyle::default_bar().template("{msg}"));
                     pb.finish_with_message(msg);
 
+                    #[cfg(not(target_os = "windows"))]
                     let package = Package {
                         user,
                         repo,
@@ -102,6 +114,20 @@ pub async fn install(args: InstallArgs) -> Result<()> {
                         tag: release.tag_name,
                         requested: requested_ver,
                         strip: args.strip.then(|| true),
+                        timestamp: release.published_at,
+                        asset_glob: args.asset_glob,
+                        asset_re: args.asset_re,
+                        entry_glob: args.entry_glob,
+                        entry_re: args.entry_re,
+                    };
+
+                    #[cfg(target_os = "windows")]
+                    let package = Package {
+                        user,
+                        repo,
+                        bin_name,
+                        tag: release.tag_name,
+                        requested: requested_ver,
                         timestamp: release.published_at,
                         asset_glob: args.asset_glob,
                         asset_re: args.asset_re,

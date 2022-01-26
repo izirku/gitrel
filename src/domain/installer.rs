@@ -20,9 +20,8 @@ use super::util::{self, ArchiveKind, TarKind};
 
 type Result<T, E = InstallerError> = std::result::Result<T, E>;
 
-#[allow(clippy::too_many_arguments)]
+#[cfg(not(target_os = "windows"))]
 pub async fn install(
-    repo: &str,
     asset_name: &str,
     asset_path: &Path,
     bin_dir: &Path,
@@ -31,7 +30,6 @@ pub async fn install(
     entry_glob: Option<&str>,
     entry_re: Option<&str>,
 ) -> Result<u64> {
-    let bin_name = util::bin_name(bin_name);
     let dest = bin_dir.join(&bin_name);
     let dest = dest.as_path();
 
@@ -39,9 +37,9 @@ pub async fn install(
         ArchiveKind::GZip => extract_gzip(asset_path, dest),
         ArchiveKind::BZip => extract_bzip(asset_path, dest),
         ArchiveKind::XZ => extract_xz(asset_path, dest),
-        ArchiveKind::Zip => extract_zip(asset_path, repo, dest, entry_glob, entry_re),
+        ArchiveKind::Zip => extract_zip(asset_path, bin_name, dest, entry_glob, entry_re),
         ArchiveKind::Tar(tar_kind) => {
-            extract_tar(asset_path, tar_kind, repo, dest, entry_glob, entry_re)
+            extract_tar(asset_path, tar_kind, bin_name, dest, entry_glob, entry_re)
         }
         ArchiveKind::Uncompressed => {
             let mut reader =
@@ -78,6 +76,51 @@ pub async fn install(
             }
         } else {
             Ok(bin_size)
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+pub async fn install(
+    asset_name: &str,
+    asset_path: &Path,
+    bin_dir: &Path,
+    bin_name: &str,
+    entry_glob: Option<&str>,
+    entry_re: Option<&str>,
+) -> Result<u64> {
+    let bin_name = format!("{}.exe", bin_name);
+    let dest = bin_dir.join(&bin_name);
+    let dest = dest.as_path();
+
+    match util::archive_kind(asset_name) {
+        ArchiveKind::GZip => extract_gzip(asset_path, dest),
+        ArchiveKind::BZip => extract_bzip(asset_path, dest),
+        ArchiveKind::XZ => extract_xz(asset_path, dest),
+        ArchiveKind::Zip => extract_zip(asset_path, &bin_name, dest, entry_glob, entry_re),
+        ArchiveKind::Tar(tar_kind) => {
+            extract_tar(asset_path, tar_kind, &bin_name, dest, entry_glob, entry_re)
+        }
+        ArchiveKind::Uncompressed => {
+            let mut reader =
+                BufReader::new(File::open(asset_path).context("opening downloaded file")?);
+            let mut dest_file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .open(dest)
+                .context(format!(
+                    "{}:{}: {}",
+                    file!(),
+                    line!(),
+                    "opening destination"
+                ))?;
+
+            match std::io::copy(&mut reader, &mut dest_file) {
+                Ok(n) => Ok(n),
+                Err(_e) => Err(InstallerError::AnyHow(anyhow!(
+                    "installing an uncompressed binary"
+                ))),
+            }
         }
     }
 }

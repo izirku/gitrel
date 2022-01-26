@@ -43,6 +43,7 @@ pub struct InstallArgs {
     pub rename_binary: Option<String>,
 
     /// minimize by using `strip`
+    #[cfg(not(target_os = "windows"))]
     #[clap(short, long)]
     pub strip: bool,
 
