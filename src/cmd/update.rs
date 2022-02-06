@@ -106,8 +106,8 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
                     bin_dir.as_path(),
                     &packages_installed[i].bin_name,
                     packages_installed[i].strip.unwrap_or_default(),
-                    packages_installed[i].asset_glob.as_deref(),
-                    packages_installed[i].asset_re.as_deref(),
+                    packages_installed[i].entry_glob.as_deref(),
+                    packages_installed[i].entry_re.as_deref(),
                 )
                 .await;
 
