@@ -1,6 +1,6 @@
 [package]
 name = "gitrel"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["Evgenii Grigorev <zjekadev@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
@@ -35,7 +35,7 @@ tabled = { version = "0.4", features = ["color"] }
 tar = "0.4"
 tempfile = "3.3"
 thiserror = "1"
-tokio = { version = "1.15", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 url = { version = "2.2", features = ["serde"] }
 xz = "0.1"
 zip = "0.5"
