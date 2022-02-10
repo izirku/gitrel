@@ -90,7 +90,7 @@ impl GitHub {
                     "https://api.github.com/repos/{}/{}/releases/latest",
                     user, repo,
                 );
-                self.find_exact_release(&req_url, repo, asset_glob, asset_re)
+                self.find_release_exact(&req_url, repo, asset_glob, asset_re)
                     .await
             }
             PackageMatchKind::Exact => {
@@ -98,7 +98,7 @@ impl GitHub {
                     "https://api.github.com/repos/{}/{}/releases/tags/{}",
                     user, repo, requested,
                 );
-                self.find_exact_release(&req_url, repo, asset_glob, asset_re)
+                self.find_release_exact(&req_url, repo, asset_glob, asset_re)
                     .await
             }
             PackageMatchKind::SemVer => {
@@ -140,7 +140,7 @@ impl GitHub {
         }
     }
 
-    async fn find_exact_release(
+    async fn find_release_exact(
         &self,
         req_url: &str,
         repo: &str,

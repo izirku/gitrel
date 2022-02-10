@@ -9,7 +9,7 @@
 
 <p align="center"><img src="/xtra/gitrel_demo.gif?raw=true"/></p>
 
-## Install
+## Install/Update
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/izirku/gitrel/main/xtra/install.sh)"

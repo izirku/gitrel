@@ -1,4 +1,5 @@
 use std::ffi::OsStr;
+use std::fmt::Write;
 use std::fs::{self, File, OpenOptions};
 use std::io::BufReader;
 use std::path::Path;
@@ -198,6 +199,7 @@ fn extract_zip(
     let mut zip = ZipArchive::new(File::open(archive).context("opening a zip file")?)
         .context("reading a zip file")?;
     let archive_entry_matcher = get_archive_entry_matcher(file_name, entry_glob, entry_re)?;
+    let mut unmatched_entries = String::new();
 
     // first we have to find an index of what we want, without decompression
     let mut idx_to_extract = None;
@@ -210,6 +212,8 @@ fn extract_zip(
                 idx_to_extract = Some(i);
                 break;
             }
+            writeln!(&mut unmatched_entries, "  {}", archive_entry.display())
+                .map_err(anyhow::Error::msg)?;
         }
     }
 
@@ -238,6 +242,7 @@ fn extract_zip(
         file_name,
         entry_glob,
         entry_re,
+        unmatched_entries,
     ))
 }
 
@@ -271,6 +276,7 @@ fn extract_tar(
     let reader = BufReader::new(File::open(&tarball_path).context("reading a tarball")?);
     let mut tarball = tar::Archive::new(reader);
     let archive_entry_matcher = get_archive_entry_matcher(file_name, entry_glob, entry_re)?;
+    let mut unmatched_entries = String::new();
 
     for entry in tarball.entries().context("reading tarball entries")? {
         let mut entry = entry.context("reading a tarball entry")?;
@@ -283,6 +289,9 @@ fn extract_tar(
                 .len();
             return Ok(bin_size);
         }
+
+        writeln!(&mut unmatched_entries, "  {}", archive_entry.display())
+            .map_err(anyhow::Error::msg)?;
     }
 
     Err(entry_match_error(
@@ -290,6 +299,7 @@ fn extract_tar(
         file_name,
         entry_glob,
         entry_re,
+        unmatched_entries,
     ))
 }
 
@@ -298,16 +308,18 @@ fn entry_match_error(
     entry_exact: &str,
     entry_glob: Option<&str>,
     entry_re: Option<&str>,
+    msg: String,
 ) -> InstallerError {
     if let Some(s) = entry_glob {
-        InstallerError::EntryNotFound(s.to_owned(), "glob pattern", archive_name.to_owned())
+        InstallerError::EntryNotFound(s.to_owned(), "glob pattern", archive_name.to_owned(), msg)
     } else if let Some(s) = entry_re {
-        InstallerError::EntryNotFound(s.to_owned(), "RegEx pattern", archive_name.to_owned())
+        InstallerError::EntryNotFound(s.to_owned(), "RegEx pattern", archive_name.to_owned(), msg)
     } else {
         InstallerError::EntryNotFound(
             entry_exact.to_owned(),
             "exact file name",
             archive_name.to_owned(),
+            msg,
         )
     }
 }
@@ -318,9 +330,6 @@ fn get_archive_entry_matcher(
     entry_re: Option<&str>,
 ) -> Result<Box<dyn Fn(&Path) -> Result<bool>>> {
     if let Some(s) = entry_glob {
-        // if s.contains('/') || s.contains("**") {
-        //     return Err(anyhow!("'/' or '**' are not allowed not allowed in a glob pattern matching a single file name"));
-        // }
         let glob = glob::Pattern::new(s).context("invalid asset name glob pattern")?;
         Ok(Box::new(move |archive_entry: &Path| {
             Ok(glob.matches_path(archive_entry))
@@ -328,24 +337,12 @@ fn get_archive_entry_matcher(
     } else if let Some(s) = entry_re {
         let re = regex::Regex::new(s).context("invalid asset name RegEx pattern")?;
         Ok(Box::new(move |archive_entry: &Path| {
-            if let Some(archive_entry) = archive_entry.to_str() {
-                Ok(re.is_match(archive_entry))
-            } else {
-                Err(InstallerError::AnyHow(anyhow!(
-                    "unable to convert archive entry path to string"
-                )))
-            }
+            Ok(re.is_match(&archive_entry.to_string_lossy()))
         }))
     } else {
         let entry_exact = entry_exact.to_owned();
         Ok(Box::new(move |archive_entry: &Path| {
-            if let Some(archive_entry_file) = archive_entry.file_name().and_then(OsStr::to_str) {
-                Ok(archive_entry_file == entry_exact)
-            } else {
-                Err(InstallerError::AnyHow(anyhow!(
-                    "unable to convert archive file entry path to string"
-                )))
-            }
+            Ok(archive_entry.ends_with(&entry_exact))
         }))
     }
 }
