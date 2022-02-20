@@ -60,7 +60,7 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
 
     let gh = GitHub::create(args.token.as_ref());
     let temp_dir = tempfile::tempdir().context("creating a temp dir failed")?;
-    let bin_dir = util::bin_dir()?;
+    let default_bin_dir = util::bin_dir()?;
     let mut needs_save = false;
     let mut updated = 0;
 
@@ -99,11 +99,20 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
                     style(&packages_installed[i].bin_name).green()
                 ));
 
+                // either use the default path or the one specified in a package spec
+                let pkg_path;
+                let bin_dir = if let Some(p) = &packages_installed[i].path {
+                    pkg_path = std::path::PathBuf::try_from(p)?;
+                    pkg_path.as_path()
+                } else {
+                    default_bin_dir.as_path()
+                };
+
                 #[cfg(not(target_os = "windows"))]
                 let res = installer::install(
                     &release.assets[0].name,
                     &asset_path,
-                    bin_dir.as_path(),
+                    bin_dir,
                     &packages_installed[i].bin_name,
                     packages_installed[i].strip.unwrap_or_default(),
                     packages_installed[i].entry_glob.as_deref(),

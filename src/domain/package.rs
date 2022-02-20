@@ -12,8 +12,11 @@ pub struct Package {
     pub user: String,
     /// repo name
     pub repo: String,
-    /// name binary to use
+    /// binary name to use
     pub bin_name: String,
+    /// override installation path
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
     /// *release tag* of an installed or a *matched* release
     pub tag: String,
     /// a requested *version*, can be one of:

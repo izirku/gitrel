@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::Result;
 use clap::crate_name;
 use console::style;
@@ -65,7 +67,13 @@ pub async fn install(args: InstallArgs) -> Result<()> {
             let msg = format!("installing {}", style(&repo).green());
             pb.set_message(msg);
 
-            let bin_dir = util::bin_dir()?;
+            // let bin_dir = util::bin_dir()?;
+            let bin_dir = if let Some(p) = &args.path {
+                PathBuf::try_from(p)?
+            } else {
+                util::bin_dir()?
+            };
+
             let bin_name = if let Some(new_name) = args.rename_binary.to_owned() {
                 new_name
             } else {
@@ -111,6 +119,7 @@ pub async fn install(args: InstallArgs) -> Result<()> {
                         user,
                         repo,
                         bin_name,
+                        path: args.path,
                         tag: release.tag_name,
                         requested: requested_ver,
                         strip: args.strip.then(|| true),
@@ -126,6 +135,7 @@ pub async fn install(args: InstallArgs) -> Result<()> {
                         user,
                         repo,
                         bin_name,
+                        path: args.path,
                         tag: release.tag_name,
                         requested: requested_ver,
                         timestamp: release.published_at,

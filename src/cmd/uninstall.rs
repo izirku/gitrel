@@ -39,7 +39,7 @@ pub async fn uninstall(args: UninstallArgs) -> Result<()> {
         return Ok(());
     }
 
-    let bin_dir = bin_dir()?;
+    let default_bin_dir = bin_dir()?;
     let mut needs_save = false;
     let mut uninstalled_ct = 0;
 
@@ -54,6 +54,15 @@ pub async fn uninstall(args: UninstallArgs) -> Result<()> {
         pb.set_message(format!("uninstalling {}", style(&pkg.bin_name).green()));
         pb.enable_steady_tick(220);
 
+        // either use the default path or the one specified in a package spec
+        let pkg_path;
+        let bin_dir = if let Some(p) = &pkg.path {
+            pkg_path = std::path::PathBuf::try_from(p)?;
+            pkg_path.as_path()
+        } else {
+            default_bin_dir.as_path()
+        };
+
         cfg_if::cfg_if! {
             if #[cfg(target_os = "windows")] {
                 let bin_name = format!("{}.exe", &pkg.bin_name);
@@ -63,7 +72,7 @@ pub async fn uninstall(args: UninstallArgs) -> Result<()> {
             }
         }
 
-        match uninstall_binary(bin_name, bin_dir.as_path()) {
+        match uninstall_binary(bin_name, bin_dir) {
             Ok(()) => {
                 let msg = format!(
                     "{} uninstalled {}",
