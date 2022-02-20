@@ -124,7 +124,7 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
                 let res = installer::install(
                     &release.assets[0].name,
                     &asset_path,
-                    bin_dir.as_path(),
+                    bin_dir,
                     &packages_installed[i].bin_name,
                     packages_installed[i].asset_glob.as_deref(),
                     packages_installed[i].asset_re.as_deref(),
