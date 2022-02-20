@@ -28,7 +28,7 @@ fn run_app() -> Result<()> {
         cli::Commands::Install(args) => rt_current_thread(cmd::install(args)),
         cli::Commands::Update(args) => rt_current_thread(cmd::update(args)),
         cli::Commands::Uninstall(args) => rt_current_thread(cmd::uninstall(args)),
-        cli::Commands::List => cmd::list(),
+        cli::Commands::List(args) => cmd::list(args),
         cli::Commands::Info(args) => rt_current_thread(cmd::info(args)),
     }
 }
@@ -44,6 +44,6 @@ fn rt_current_thread<F: Future>(f: F) -> F::Output {
 
 #[test]
 fn verify_app() {
-    use clap::IntoApp;
-    Cli::into_app().debug_assert()
+    use clap::CommandFactory;
+    Cli::command().debug_assert()
 }

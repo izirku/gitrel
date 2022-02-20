@@ -141,6 +141,19 @@ pub fn bin_dir() -> Result<PathBuf> {
     Ok(bin_dir)
 }
 
+pub fn bin_dir_display() -> Result<&'static str> {
+    let base_dirs = BaseDirs::new().ok_or_else(|| anyhow!("unable to get usable `base dir`"))?;
+    let home_dir = base_dirs.home_dir();
+
+    if home_dir.join(".local/bin/").exists() {
+        Ok("~/.local/bin")
+    } else if home_dir.join("bin/").exists() {
+        Ok("~/.bin")
+    } else {
+        Ok(r#"¯\_(ツ)_/¯"#)
+    }
+}
+
 /// Returns a tuple (user, repo, requested_version)
 pub fn parse_gh_repo_spec(repo_spec: &str) -> Result<(String, String, String)> {
     // split [https://github.com/]user/repo@version at '@'

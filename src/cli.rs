@@ -21,7 +21,7 @@ pub enum Commands {
     Uninstall(UninstallArgs),
 
     /// list installed binaries
-    List,
+    List(ListArgs),
 
     /// match and show info about an available GitHub repo release
     #[clap(arg_required_else_help = true)]
@@ -41,6 +41,10 @@ pub struct InstallArgs {
     /// rename binary before installation
     #[clap(short, long = "rename", value_name = "NEW_NAME")]
     pub rename_binary: Option<String>,
+
+    /// override installation path
+    #[clap(short, long = "install-path", value_name = "INSTALL_PATH")]
+    pub path: Option<String>,
 
     /// minimize by using `strip`
     #[cfg(not(target_os = "windows"))]
@@ -93,6 +97,13 @@ pub struct UninstallArgs {
     /// binary name(s)
     #[clap(required = true)]
     pub bin_names: Vec<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct ListArgs {
+    /// display more information (+show installation path)
+    #[clap(short, long)]
+    pub wide: bool,
 }
 
 #[derive(Args, Debug)]
