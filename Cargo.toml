@@ -1,6 +1,6 @@
 [package]
 name = "gitrel"
-version = "0.2.5"
+version = "0.2.6"
 authors = ["Evgenii Grigorev <zjekadev@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
@@ -18,7 +18,7 @@ bytesize = "1.1"
 bzip2 = "0.4"
 cfg-if = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
-clap = { version = "3.0", features = ["derive", "env", "cargo"] }
+clap = { version = "3.1", features = ["derive", "env", "cargo"] }
 console = "0.15"
 directories = "4.0"
 flate2 = "1.0"
@@ -31,7 +31,7 @@ reqwest = { version = "0.11", features = ["json", "stream"] }
 semver = "1.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0"
-tabled = { version = "0.4", features = ["color"] }
+tabled = { version = "0.5", features = ["color"] }
 tar = "0.4"
 tempfile = "3.3"
 thiserror = "1"

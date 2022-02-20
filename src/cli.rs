@@ -1,4 +1,4 @@
-use clap::{AppSettings, Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -10,21 +10,21 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// install binaries
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    #[clap(arg_required_else_help = true)]
     Install(InstallArgs),
 
     /// update binaries
     Update(UpdateArgs),
 
     /// uninstall binaries
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    #[clap(arg_required_else_help = true)]
     Uninstall(UninstallArgs),
 
     /// list installed binaries
     List,
 
     /// match and show info about an available GitHub repo release
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    #[clap(arg_required_else_help = true)]
     Info(InfoArgs),
 }
 

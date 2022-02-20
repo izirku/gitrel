@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::crate_name;
 use console::style;
-use tabled::{style::Line, Alignment, Column, Format, Modify, Object, Row, Style, Table, Tabled};
+use tabled::{Alignment, Column, Format, Modify, Object, Row, Style, Table, Tabled};
 
 use crate::domain::{package, util::packages_file};
 
@@ -41,8 +41,16 @@ pub fn list() -> Result<()> {
         });
     }
 
+    // let table = Table::new(&list_lines).with(Style::blank().header('-').header_intersection('+'))
     let table = Table::new(&list_lines)
-        .with(Style::NO_BORDER.header(Some(Line::short('-', '+'))))
+        .with(
+            Style::modern()
+                .horizontal_off()
+                .top_off()
+                .bottom_off()
+                .left_off()
+                .right_off(),
+        )
         .with(
             Modify::new(Column(..1))
                 .with(Alignment::left())
@@ -67,7 +75,7 @@ pub fn list() -> Result<()> {
             format!("{}{}{}", style('[').cyan(), s, style(']').cyan())
         })));
 
-    println!("{}", table);
+    println!("\n{}", table);
 
     Ok(())
 }

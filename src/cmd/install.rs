@@ -141,6 +141,10 @@ pub async fn install(args: InstallArgs) -> Result<()> {
                         packages_installed.push(package);
                     }
 
+                    // sort installed packages before writing them out, so that the subsequent `list`
+                    // and `update` commands display & iterate over installed packages in an alphabetic order
+                    packages_installed.sort_unstable_by(|a, b| a.bin_name.cmp(&b.bin_name));
+
                     package::write_packages_file(&packages_file, &packages_installed)?;
                     Ok(())
                 }
