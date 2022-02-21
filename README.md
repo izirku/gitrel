@@ -58,7 +58,7 @@ gitrel install https://github.com/JohnnyMorganz/StyLua@^0.11
 
 ### Advanced Install Examples
 
-Since there is no single standard on naming release artifacts, therefore,
+Since there is no single standard on naming release artifacts,
 automatic matching algorithm may fail. This is why a manual matching
 escape hatch is provided. We can use RegEx and glob patterns, to match
 against asset names and archive entires. Here are some examples:
@@ -83,14 +83,13 @@ _CommandLine Tools_ only.
 It's possible to fix this by running a command post install (currently Linux/macOS only):
 
 ```bash
-# note that a `$f` env variable, pointing to installed binary is exported,
-# use '... $f ...' or "... \$f ..."
+# note that env variable `$f`, containing installed binary path is exported
 gitrel install -fsa "zld.zip" \
   -p "/usr/local/bin" \
   -x 'install_name_tool -add_rpath /Library/Developer/CommandLineTools/usr/lib $f' \
   michaeleisel/zld
 
-# or use ":bin:" which gets substituted
+# or use ":bin:" which gets substituted as well
 gitrel install -fsa "zld.zip" \
   -p "/usr/local/bin" \
   -x "install_name_tool -add_rpath /Library/Developer/CommandLineTools/usr/lib :bin:" \
@@ -100,9 +99,10 @@ gitrel install -fsa "zld.zip" \
 ### Update, Uninstall, Info, and List Examples
 
 Running `update` will honor any manual matching, renames, binary strip (Linux/macOS),
-and _post install command_ to run (currently Linux/macOS only) as they were specified
+and _post install command_ to run (currently Linux/macOS only), as they were specified
 during the `install`. Subsequently, `update` command may fail if a never binary version
-uses a sufficiently different packaging schema. In such case, force re-install such binary.
+uses a sufficiently different packaging schema. In such case, force re-install such binary
+(i.e. `gitrel install -f ...`), providing new pattern matching parameters.
 
 ```bash
 # update all installed binaries
