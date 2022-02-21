@@ -1,3 +1,13 @@
+# Rust artifacts
 /target
+
+# macOS junk
 .DS_Store
+
+# used locally to publish releases with partial changelogs
 RELEASE_CHANGELOG.md
+
+# used locally for markdown editing
+/node_modules
+package.json
+package-lock.json

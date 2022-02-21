@@ -8,8 +8,8 @@ use indicatif::{ProgressBar, ProgressStyle};
 use crate::cli::InstallArgs;
 use crate::domain::package::Package;
 use crate::domain::util::{self, message_fail};
+use crate::domain::{executor, installer, package};
 use crate::domain::{github::GitHub, util::packages_file};
-use crate::domain::{installer, package};
 
 /// Install packages command
 pub async fn install(args: InstallArgs) -> Result<()> {
@@ -105,6 +105,12 @@ pub async fn install(args: InstallArgs) -> Result<()> {
 
             match res {
                 Ok(bin_size) => {
+                    #[cfg(not(target_os = "windows"))]
+                    if let Some(cmd) = &args.cmd_after {
+                        let bin_path = bin_dir.join(&bin_name);
+                        executor::exec(&bin_path, cmd)?;
+                    }
+
                     let msg = format!(
                         "{} installed {} ({})",
                         style('✓').green(),
@@ -128,6 +134,7 @@ pub async fn install(args: InstallArgs) -> Result<()> {
                         asset_re: args.asset_re,
                         entry_glob: args.entry_glob,
                         entry_re: args.entry_re,
+                        cmd_after: args.cmd_after,
                     };
 
                     #[cfg(target_os = "windows")]

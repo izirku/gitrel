@@ -80,6 +80,11 @@ pub struct InstallArgs {
         conflicts_with = "entry-glob"
     )]
     pub entry_re: Option<String>,
+
+    /// Execute shell command post install (use '$f' or ":bin:")
+    #[cfg(not(target_os = "windows"))]
+    #[clap(short = 'x', long = "exec-after", value_name = "CMD")]
+    pub cmd_after: Option<String>,
 }
 
 #[derive(Args, Debug)]
