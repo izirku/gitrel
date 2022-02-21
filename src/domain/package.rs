@@ -42,6 +42,10 @@ pub struct Package {
     /// archive asset's entry name matches RegEx
     #[serde(skip_serializing_if = "Option::is_none")]
     pub entry_re: Option<String>,
+    /// command to execute after install/update
+    #[cfg(not(target_os = "windows"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cmd_after: Option<String>,
 }
 
 #[derive(Debug)]

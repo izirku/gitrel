@@ -8,8 +8,8 @@ use indicatif::{ProgressBar, ProgressStyle};
 use crate::cli::UpdateArgs;
 use crate::domain::error::GithubError;
 use crate::domain::github::GitHub;
-use crate::domain::package;
 use crate::domain::util::packages_file;
+use crate::domain::{executor, package};
 use crate::domain::{installer, util};
 
 /// Update installed packages
@@ -133,6 +133,12 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
 
                 match res {
                     Ok(bin_size) => {
+                        #[cfg(not(target_os = "windows"))]
+                        if let Some(cmd) = &packages_installed[i].cmd_after {
+                            let bin_path = bin_dir.join(&packages_installed[i].bin_name);
+                            executor::exec(&bin_path, cmd)?;
+                        }
+
                         packages_installed[i].tag = release.tag_name;
                         packages_installed[i].timestamp = release.published_at;
 
