@@ -1,13 +1,6 @@
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/izirku/gitrel/CI)
-[![license](http://img.shields.io/badge/license-Apache%20v2-blue.svg)](https://raw.githubusercontent.com/izirku/gitrel/master/LICENSE-APACHE)
-[![license](http://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/izirku/gitrel/master/LICENSE-MIT)
-[![Buy me a coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg)](https://ko-fi.com/izirku)
-
 # GitRel
 
-> Install and update binaries via GitHub Releases API
-
-<p align="center"><img src="/xtra/gitrel_demo.gif?raw=true"/></p>
+> GitHub binary manager - install and update single binary releases via GitHub API
 
 ## Install/Update
 

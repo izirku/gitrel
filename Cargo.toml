@@ -1,16 +1,15 @@
 [package]
 name = "gitrel"
-version = "0.2.9"
+version = "0.2.10"
 authors = ["Evgenii Grigorev <zjekadev@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-description = "Install and update binaries via GitHub Releases API"
+description = "GitHub binary manager - install and update single binary releases via GitHub API"
 homepage = "https://github.com/izirku/gitrel"
 repository = "https://github.com/izirku/gitrel"
-documentation = "https://docs.rs/gitrel"
 categories = ["command-line-utilities"]
 readme = "crates-io.md"
-include = ["src/**/*.rs", "crates-io.md", "README.md", "LICENSE-APACHE", "LICENSE-MIT"] 
+include = ["src/**/*.rs", "build.rs", "crates-io.md", "LICENSE-APACHE", "LICENSE-MIT"]
 
 [dependencies]
 anyhow = "1.0"
