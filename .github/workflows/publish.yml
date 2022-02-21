@@ -1,15 +1,15 @@
 name: Publish to crates.io
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+#   workflow_run:
+#     workflows: [CI]
+#     types: [completed]
 
 jobs:
   publish:
     name: publish
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+#     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
