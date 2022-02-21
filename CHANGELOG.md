@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 *   Execute a command after installation with `gitrel install -x CMD`
     *   use either `$f` (must be escaped inside double quotes, i.e. `"echo \$f"`)
-        or `:bin:` in `CMD`, to substitute full path of installed binary
+        or `:bin:` in `CMD`, to substitute for a full path of installed binary
     *   subsequent `update` invocations will re-run such commands
 
 ## \[0.2.8] - 2022-02-20

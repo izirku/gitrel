@@ -83,7 +83,7 @@ _CommandLine Tools_ only.
 It's possible to fix this by running a command post install (currently Linux/macOS only):
 
 ```bash
-# note that env variable `$f`, containing installed binary path is exported
+# note that env variable `$f` containing installed binary path is exported
 gitrel install -fsa "zld.zip" \
   -p "/usr/local/bin" \
   -x 'install_name_tool -add_rpath /Library/Developer/CommandLineTools/usr/lib $f' \
