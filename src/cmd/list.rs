@@ -1,7 +1,12 @@
 use anyhow::Result;
 use clap::crate_name;
 use console::style;
-use tabled::{Alignment, Column, Disable, Format, Modify, Object, Row, Style, Table, Tabled};
+use owo_colors::OwoColorize;
+use tabled::{
+    object::{Columns, Object, Rows},
+    style::Style,
+    Alignment, Disable, ModifyObject, Table, Tabled,
+};
 
 use crate::{
     cli::ListArgs,
@@ -13,15 +18,15 @@ use crate::{
 
 #[derive(Tabled)]
 struct ListLine<'a> {
-    #[header("Bin")]
+    #[tabled(rename = "Bin")]
     bin: &'a str,
-    #[header("Requested")]
+    #[tabled(rename = "Requested")]
     requested: &'a str,
-    #[header("Installed")]
+    #[tabled(rename = "Installed")]
     installed: &'a str,
-    #[header("Repository")]
+    #[tabled(rename = "Repository")]
     repository: String,
-    #[header("Path")]
+    #[tabled(rename = "Path")]
     path: &'a str,
 }
 
@@ -60,48 +65,49 @@ pub fn list(args: ListArgs) -> Result<()> {
 }
 
 fn create_table(data: &[ListLine], wide: bool) -> Table {
-    // let table = Table::new(&list_lines).with(Style::blank().header('-').header_intersection('+'))
+    let st_blue = |s: &str| s.blue().to_string();
+    let st_blue_with_brackets =
+        |s: &str| format!("{}{}{}", style('[').cyan(), s.blue(), style(']').cyan());
+    let st_cyan = |s: &str| s.cyan().to_string();
+    let st_green = |s: &str| s.green().to_string();
+    let st_red = |s: &str| s.red().to_string();
+
+    let theme = Style::modern()
+        .off_top()
+        .off_bottom()
+        .off_horizontal()
+        // NB: order matters, make sure `.lines` is before `off_left|off_right`
+        .lines([(1, Style::modern().get_horizontal())])
+        .off_left()
+        .off_right();
+
     let table = Table::new(data)
+        .with(Columns::single(0).modify().with(st_green))
         .with(
-            Modify::new(Column(..1))
-                .with(Alignment::left())
-                .with(Format(|s| style(s).green().to_string())),
+            Columns::single(1)
+                .modify()
+                .with(st_red)
+                .with(Alignment::right()),
         )
         .with(
-            Modify::new(Column(1..2))
-                .with(Alignment::right())
-                .with(Format(|s| style(s).red().to_string())),
+            Columns::single(2)
+                .modify()
+                .with(st_cyan)
+                .with(Alignment::right()),
         )
+        .with(Columns::single(3).modify().with(st_blue))
         .with(
-            Modify::new(Column(2..3))
-                .with(Alignment::right())
-                .with(Format(|s| style(s).cyan().to_string())),
+            Columns::single(3)
+                .not(Rows::first())
+                .modify()
+                .with(st_blue_with_brackets),
         )
-        .with(
-            Modify::new(Column(3..4))
-                .with(Alignment::left())
-                .with(Format(|s| style(s).blue().to_string())),
-        )
-        .with(Modify::new(Column(3..4).not(Row(..1))).with(Format(|s| {
-            format!("{}{}{}", style('[').cyan(), s, style(']').cyan())
-        })))
-        .with(
-            Modify::new(Column(4..))
-                .with(Alignment::left())
-                .with(Format(|s| style(s).green().to_string())),
-        );
+        .with(Columns::single(4).modify().with(st_green));
 
     if !wide {
         table.with(Disable::Column(4..))
     } else {
         table
     }
-    .with(
-        Style::modern()
-            .horizontal_off()
-            .top_off()
-            .bottom_off()
-            .left_off()
-            .right_off(),
-    )
+    .with(theme)
 }
