@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::Duration;
 
 use anyhow::Result;
 use clap::crate_name;
@@ -41,10 +42,11 @@ pub async fn install(args: InstallArgs) -> Result<()> {
     pb.set_style(
         ProgressStyle::default_bar()
             .template("{spinner:.green} {msg}")
+            .unwrap()
             .progress_chars("##-"),
     );
     pb.set_message(format!("searching for {}", style(&repo).green()));
-    pb.enable_steady_tick(220);
+    pb.enable_steady_tick(Duration::from_millis(220));
 
     match gh
         .find_new(
@@ -117,7 +119,7 @@ pub async fn install(args: InstallArgs) -> Result<()> {
                         style(&repo).green(),
                         bytesize::to_string(bin_size, false),
                     );
-                    pb.set_style(ProgressStyle::default_bar().template("{msg}"));
+                    pb.set_style(ProgressStyle::default_bar().template("{msg}").unwrap());
                     pb.finish_with_message(msg);
 
                     #[cfg(not(target_os = "windows"))]

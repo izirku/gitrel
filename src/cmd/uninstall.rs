@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::time::Duration;
 
 use anyhow::Result;
 use clap::crate_name;
@@ -49,10 +50,11 @@ pub async fn uninstall(args: UninstallArgs) -> Result<()> {
         pb.set_style(
             ProgressStyle::default_bar()
                 .template("{spinner:.green} {msg}")
+                .unwrap()
                 .progress_chars("##-"),
         );
         pb.set_message(format!("uninstalling {}", style(&pkg.bin_name).green()));
-        pb.enable_steady_tick(220);
+        pb.enable_steady_tick(Duration::from_millis(220));
 
         // either use the default path or the one specified in a package spec
         let pkg_path;
@@ -79,7 +81,7 @@ pub async fn uninstall(args: UninstallArgs) -> Result<()> {
                     style('✓').green(),
                     style(&pkg.bin_name).green(),
                 );
-                pb.set_style(ProgressStyle::default_bar().template("{msg}"));
+                pb.set_style(ProgressStyle::default_bar().template("{msg}").unwrap());
                 pb.finish_with_message(msg);
 
                 uninstalled_ct += 1;

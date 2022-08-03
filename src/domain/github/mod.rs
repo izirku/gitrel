@@ -310,6 +310,7 @@ impl GitHub {
         pb.set_style(
             ProgressStyle::default_bar()
                 .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+                .unwrap()
                 .progress_chars("##-")
         );
 

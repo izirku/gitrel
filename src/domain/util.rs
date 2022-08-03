@@ -21,7 +21,7 @@ lazy_static! {
 pub fn message_fail(pb: &ProgressBar, repo_name: &str, msg: &str) {
     let msg = format!("{} {} {}", style('✗').red(), msg, style(&repo_name).red());
     pb.disable_steady_tick();
-    pb.set_style(ProgressStyle::default_bar().template("{msg}"));
+    pb.set_style(ProgressStyle::default_bar().template("{msg}").unwrap());
     pb.finish_with_message(msg);
 }
 

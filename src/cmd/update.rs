@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use clap::crate_name;
@@ -69,13 +70,14 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
         pb.set_style(
             ProgressStyle::default_bar()
                 .template("{spinner:.green} {msg}")
+                .unwrap()
                 .progress_chars("##-"),
         );
         pb.set_message(format!(
             "searching for {}",
             style(&packages_installed[i].bin_name).green()
         ));
-        pb.enable_steady_tick(220);
+        pb.enable_steady_tick(Duration::from_millis(220));
 
         match gh.find_existing(&packages_installed[i]).await {
             Ok(release) => {
@@ -148,7 +150,7 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
                             style(&packages_installed[i].bin_name).green(),
                             bytesize::to_string(bin_size, false),
                         );
-                        pb.set_style(ProgressStyle::default_bar().template("{msg}"));
+                        pb.set_style(ProgressStyle::default_bar().template("{msg}").unwrap());
                         pb.finish_with_message(msg);
 
                         needs_save = true;
@@ -176,7 +178,7 @@ pub async fn update(args: UpdateArgs) -> Result<()> {
                     style('✓').green(),
                     style(&packages_installed[i].bin_name).green(),
                 );
-                pb.set_style(ProgressStyle::default_bar().template("{msg}"));
+                pb.set_style(ProgressStyle::default_bar().template("{msg}").unwrap());
                 pb.finish_with_message(msg);
             }
             Err(e) => {
