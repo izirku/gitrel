@@ -31,6 +31,10 @@ as one of the installed packages:
 gitrel install izirku/gitrel
 ```
 
+> Linux/WSL2 note: if you get an error along the lines of
+> `gitrel: error while loading shared libraries: libssl.so.1.1: cannot open shared object file: No such file or directory`,
+> please buid from source via `cargo` for now.
+
 ## Usage
 
 If a `repo` has the same name as `user`/`org`, a *short-hand* can be used,
