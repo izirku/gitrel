@@ -75,6 +75,7 @@ lazy_static! {
         "source",
         "src",
         "vsix",
+        "apk",
 
         #[cfg(not(all(target_os="windows", target_arch="x86_64")))]
         "win64",
@@ -156,6 +157,9 @@ lazy_static! {
         "armv7a",
         "armv7r",
         "asmjs",
+
+        #[cfg(not(target_arch="x86"))]
+        "i386",
 
         #[cfg(not(target_arch="x86"))]
         "i586",
