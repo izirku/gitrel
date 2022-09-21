@@ -3,16 +3,15 @@ mod release;
 mod response;
 
 use std::cmp;
-use std::fmt::Write;
+// use std::fmt::Write;
+use std::fs::File;
+use std::io::Write;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context};
-use futures_util::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
-use reqwest::{header, Client, Method};
 use tempfile::TempDir;
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
+use ureq::{Agent, AgentBuilder};
 
 use crate::domain::github::response::ErrorResponse;
 
@@ -27,56 +26,34 @@ type Result<T, E = GithubError> = std::result::Result<T, E>;
 const GH_MAX_PAGES: usize = 5;
 const GH_PER_PAGE: usize = 25;
 
-pub struct GitHub {
-    client: Client,
-    api_headers: header::HeaderMap,
-    dl_headers: header::HeaderMap,
+pub struct GitHub<'a> {
+    agent: Agent,
+    token: Option<&'a str>, // api_headers: Vec<(&'a str, String)>,
+                            // dl_headers: Vec<(&'a str, String)>,
 }
 
-impl GitHub {
-    pub fn create(token: Option<&String>) -> Self {
-        let mut api_headers = header::HeaderMap::new();
-        api_headers.insert(
-            header::ACCEPT,
-            header::HeaderValue::from_static("application/vnd.github.v3+json"),
-        );
-        api_headers.insert(
-            header::USER_AGENT,
-            header::HeaderValue::from_static("reqwest"),
-        );
+impl<'a> GitHub<'a> {
+    pub fn create(token: Option<&'a str>) -> Self {
+        // let mut api_headers = vec![("Accept", "application/vnd.github.v3+json".to_owned())];
 
-        let mut dl_headers = header::HeaderMap::new();
-        dl_headers.insert(
-            header::ACCEPT,
-            header::HeaderValue::from_static("application/octet-stream"),
-        );
-        dl_headers.insert(
-            header::USER_AGENT,
-            header::HeaderValue::from_static("reqwest"),
-        );
+        // let mut dl_headers = vec![("Accept", "application/octet-stream".to_owned())];
 
-        if let Some(token) = token {
-            let token = format!("token {}", token);
+        // if let Some(token) = token {
+        //     let token = format!("token {}", token);
 
-            api_headers.insert(
-                header::AUTHORIZATION,
-                header::HeaderValue::from_str(&token).unwrap(),
-            );
-            dl_headers.insert(
-                header::AUTHORIZATION,
-                header::HeaderValue::from_str(&token).unwrap(),
-            );
-        }
+        //     api_headers.push(("Authorization", token.to_owned()));
+        // }
 
-        Self {
-            client: reqwest::Client::new(),
-            api_headers,
-            dl_headers,
-        }
+        let agent = AgentBuilder::new()
+            .timeout_read(std::time::Duration::from_secs(5))
+            .timeout_write(std::time::Duration::from_secs(5))
+            .build();
+
+        Self { agent, token }
     }
 
     /// Find a `Release` matching provided parameters.
-    pub async fn find_new(
+    pub fn find_new(
         &self,
         user: &str,
         repo: &str,
@@ -91,7 +68,6 @@ impl GitHub {
                     user, repo,
                 );
                 self.find_release_exact(&req_url, repo, asset_glob, asset_re)
-                    .await
             }
             PackageMatchKind::Exact => {
                 let req_url = format!(
@@ -99,7 +75,6 @@ impl GitHub {
                     user, repo, requested,
                 );
                 self.find_release_exact(&req_url, repo, asset_glob, asset_re)
-                    .await
             }
             PackageMatchKind::SemVer => {
                 let req_url = format!(
@@ -107,7 +82,6 @@ impl GitHub {
                     user, repo, GH_PER_PAGE,
                 );
                 self.find_release(&req_url, requested, repo, asset_glob, asset_re)
-                    .await
             }
         }
     }
@@ -115,16 +89,14 @@ impl GitHub {
     /// Find a `Release` matching provided `Package`.
     /// When `force` is `true`, return `Release`, even if it's not newer than
     /// the one specified in `Package`
-    pub async fn find_existing(&self, package: &Package) -> Result<Release> {
-        let res = self
-            .find_new(
-                &package.user,
-                &package.repo,
-                &package.requested,
-                package.asset_glob.as_deref(),
-                package.asset_re.as_deref(),
-            )
-            .await;
+    pub fn find_existing(&self, package: &Package) -> Result<Release> {
+        let res = self.find_new(
+            &package.user,
+            &package.repo,
+            &package.requested,
+            package.asset_glob.as_deref(),
+            package.asset_re.as_deref(),
+        );
 
         if let Ok(release) = res {
             // we want to compare release's `published_at` date to
@@ -140,34 +112,48 @@ impl GitHub {
         }
     }
 
-    async fn find_release_exact(
+    fn find_release_exact(
         &self,
         req_url: &str,
         repo: &str,
         asset_glob: Option<&str>,
         asset_re: Option<&str>,
     ) -> Result<Release> {
-        use reqwest::StatusCode;
+        // use reqwest::StatusCode;
 
-        let resp = self
-            .client
-            .get(req_url)
-            .headers(self.api_headers.clone())
-            .send()
-            .await
+        // let mut api_headers = vec![("Accept", "application/vnd.github.v3+json".to_owned())];
+
+        // let mut dl_headers = vec![("Accept", "application/octet-stream".to_owned())];
+
+        // if let Some(token) = token {
+        //     let token = format!("token {}", token);
+
+        //     api_headers.push(("Authorization", token.to_owned()));
+        // }
+
+        let req = self.agent.get(req_url);
+
+        let req = if let Some(token) = self.token {
+            req.set("Authorization", token)
+        } else {
+            req
+        };
+
+        let resp = req
+            .set("Accept", "application/vnd.github.v3+json")
+            .call()
             .context("fetching latest release")?;
 
-        if resp.status() == StatusCode::NOT_FOUND {
+        if resp.status() == 404 {
             return Err(GithubError::ReleaseNotFound);
         }
 
-        if resp.status() != StatusCode::OK {
+        if resp.status() != 200 {
             return Err(GithubError::AnyHow(anyhow!("getting")));
         }
 
         let resp: GithubResponse<Release> = resp
-            .json()
-            .await
+            .into_json()
             .context("parsing latest release response body")?;
 
         match resp {
@@ -199,7 +185,7 @@ impl GitHub {
         }
     }
 
-    async fn find_release(
+    fn find_release(
         &self,
         req_url: &str,
         requested: &str,
@@ -207,30 +193,42 @@ impl GitHub {
         asset_glob: Option<&str>,
         asset_re: Option<&str>,
     ) -> Result<Release> {
-        use reqwest::StatusCode;
+        // use reqwest::StatusCode;
         let asset_matcher = get_asset_name_matcher(repo, asset_glob, asset_re)?;
         let mut curr_page: usize = 1;
 
+        let req = self
+            .agent
+            .get(req_url)
+            .set("Accept", "application/vnd.github.v3+json");
+
+        let req = if let Some(token) = self.token {
+            req.set("Authorization", token)
+        } else {
+            req
+        };
+
+        // let resp = req
+        //     .set("Accept", "application/vnd.github.v3+json")
+        //     .call()
+        //     .context("fetching latest release")?;
+
         'outer: loop {
-            let resp = self
-                .client
-                .request(Method::GET, req_url)
-                .headers(self.api_headers.clone())
-                .query(&[("page", curr_page)])
-                .send()
-                .await
+            let resp = req
+                .query("page", &curr_page.to_string())
+                .call()
                 .context("sending request")?;
 
-            if resp.status() == StatusCode::NOT_FOUND {
+            if resp.status() == 404 {
                 return Err(GithubError::ReleaseNotFound);
             }
 
-            if resp.status() != StatusCode::OK {
+            if resp.status() != 200 {
                 return Err(GithubError::AnyHow(anyhow!("getting")));
             }
 
             let releases: GithubResponse<Vec<Release>> =
-                resp.json().await.context("parsing response body")?;
+                resp.into_json().context("parsing response body")?;
 
             let releases = match releases {
                 GithubResponse::Ok(res) => res,
@@ -270,7 +268,7 @@ impl GitHub {
         }
     }
 
-    pub async fn download(
+    pub fn download(
         &self,
         user: &str,
         repo: &str,
@@ -278,65 +276,105 @@ impl GitHub {
         asset_name: &str,
         temp_dir: &TempDir,
     ) -> Result<PathBuf> {
-        use reqwest::StatusCode;
+        // use reqwest::StatusCode;
         let req_url = format!(
             "https://api.github.com/repos/{}/{}/releases/assets/{}",
             user, repo, asset_id
         );
 
-        let resp = self
-            .client
-            .get(&req_url)
-            .headers(self.dl_headers.clone())
-            .send()
-            .await
-            .context("fething an asset")?;
+        let req = self.agent.get(&req_url);
 
-        if resp.status() == StatusCode::NOT_FOUND {
+        let req = if let Some(token) = self.token {
+            req.set("Authorization", token)
+        } else {
+            req
+        };
+
+        let resp = req
+            .set("Accept", "application/octet-stream")
+            .call()
+            .context("fetching an asset")?;
+
+        if resp.status() == 404 {
             return Err(GithubError::AssetNotFound);
         }
 
-        if resp.status() != StatusCode::OK {
+        if resp.status() != 200 {
             let mut msg = format!("getting: {}", &req_url);
-            if let Ok(txt) = resp.text().await {
+            if let Ok(txt) = resp.into_string() {
                 msg.push('\n');
                 msg.push_str(&txt);
             }
             return Err(GithubError::AnyHow(anyhow!(msg)));
         }
-        let tot_size = resp.content_length().context("getting content length")?;
 
-        let pb = ProgressBar::new(tot_size);
+        let tot_size = resp
+            .header("Content-Length")
+            .context("getting content length")?
+            .parse::<u64>()
+            .context("parsing content length")?;
+
+        let pb = ProgressBar::new_spinner();
         pb.set_style(
-            ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+            ProgressStyle::with_template("{spinner:.blue} {msg}")
                 .unwrap()
-                .progress_chars("##-")
+                .tick_strings(&[
+                    "▹▹▹▹▹",
+                    "▸▹▹▹▹",
+                    "▹▸▹▹▹",
+                    "▹▹▸▹▹",
+                    "▹▹▹▸▹",
+                    "▹▹▹▹▸",
+                    "▪▪▪▪▪",
+                ]),
         );
 
-        let mut downloaded: u64 = 0;
-        let mut stream = resp.bytes_stream();
+        let msg = format!(
+            "downloading {} ({})",
+            asset_name,
+            bytesize::to_string(tot_size, false)
+        );
+
+        pb.set_message(msg);
 
         let temp_file_name = temp_dir.path().join(asset_name);
-        let mut temp_file = File::create(temp_file_name.as_path())
-            .await
-            .context(format!(
-                "creating a temp file: {:?}",
-                temp_file_name.as_path(),
-            ))?;
+        let mut temp_file = File::create(temp_file_name.as_path()).context(format!(
+            "creating a temp file: {:?}",
+            temp_file_name.as_path(),
+        ))?;
 
-        while let Some(item) = stream.next().await {
-            let chunk = item.context("retrieving a next chunk")?;
-            temp_file
-                .write(&chunk)
-                .await
-                .context("writing a chunk to temp file")?;
-            let new = cmp::min(downloaded + (chunk.len() as u64), tot_size);
-            downloaded = new;
-            pb.set_position(new);
+        let resp_reader = resp.into_reader();
+        let mut buf = [0u8; 4096];
+
+        // TODO: this needs to be looked at closer
+        loop {
+            match resp_reader
+                .read(&mut buf)
+                .context("reading response bytes")?
+            {
+                0 => break,
+                n => temp_file
+                    .write_all(&mut buf[0..n])
+                    .context("writing to file")?,
+            }
         }
 
-        pb.finish_and_clear();
+        // temp_file.write()
+        // while let Some(item) = resp_reader.read_vectored
+
+        // while let Some(item) = stream.next().await {
+        //     let chunk = item.context("retrieving a next chunk")?;
+        //     temp_file
+        //         .write(&chunk)
+        //         .await
+        //         .context("writing a chunk to temp file")?;
+        //     let new = cmp::min(downloaded + (chunk.len() as u64), tot_size);
+        //     downloaded = new;
+        //     pb.set_position(new);
+        // }
+
+        // pb.finish_and_clear();
+        pb.finish();
 
         Ok(temp_file_name)
     }

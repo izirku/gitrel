@@ -9,7 +9,13 @@ homepage = "https://github.com/izirku/gitrel"
 repository = "https://github.com/izirku/gitrel"
 categories = ["command-line-utilities"]
 readme = "crates-io.md"
-include = ["src/**/*.rs", "build.rs", "crates-io.md", "LICENSE-APACHE", "LICENSE-MIT"]
+include = [
+  "src/**/*.rs",
+  "build.rs",
+  "crates-io.md",
+  "LICENSE-APACHE",
+  "LICENSE-MIT",
+]
 
 [dependencies]
 anyhow = "1.0"
@@ -26,8 +32,7 @@ glob = "0.3"
 indicatif = "0.17"
 lazy_static = "1.4"
 owo-colors = "3"
-regex = "1.5"
-reqwest = { version = "0.11", features = ["json", "stream"] }
+regex = "1.6"
 semver = "1.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0"
@@ -36,7 +41,8 @@ tar = "0.4"
 tempfile = "3.3"
 thiserror = "1"
 tokio = { version = "1", features = ["full"] }
-url = { version = "2.2", features = ["serde"] }
+ureq = { version = "2", features = ["json"] }
+url = { version = "2", features = ["serde"] }
 xz = "0.1"
 zip = "0.6"
 
